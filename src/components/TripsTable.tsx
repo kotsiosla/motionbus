@@ -122,36 +122,37 @@ export function TripsTable({ trips, isLoading, routeNames }: TripsTableProps) {
                   <CollapsibleTrigger className="w-full p-4 hover:bg-muted/50 transition-colors text-left">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          {(() => {
-                            const route = getRouteDisplay(trip.routeId);
-                            return route.color ? (
-                              <div 
-                                className="px-2 py-0.5 rounded text-xs font-bold flex-shrink-0"
-                                style={{ backgroundColor: route.color, color: route.textColor }}
-                              >
-                                {route.shortName}
+                        {(() => {
+                          const route = getRouteDisplay(trip.routeId);
+                          return (
+                            <>
+                              <div className="flex items-center gap-2 mb-1">
+                                {route.color ? (
+                                  <div 
+                                    className="px-2 py-0.5 rounded text-xs font-bold flex-shrink-0"
+                                    style={{ backgroundColor: route.color, color: route.textColor }}
+                                  >
+                                    {route.shortName}
+                                  </div>
+                                ) : (
+                                  <span className="font-mono text-sm font-medium">
+                                    {route.shortName}
+                                  </span>
+                                )}
+                                {delayInfo && (
+                                  <span className={`status-badge ${delayInfo.className}`}>
+                                    {delayInfo.text}
+                                  </span>
+                                )}
                               </div>
-                            ) : (
-                              <span className="font-mono text-sm font-medium truncate">
-                                {route.shortName}
-                              </span>
-                            );
-                          })()}
-                          {(() => {
-                            const route = getRouteDisplay(trip.routeId);
-                            return route.longName && (
-                              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                {route.longName}
-                              </span>
-                            );
-                          })()}
-                          {delayInfo && (
-                            <span className={`status-badge ${delayInfo.className}`}>
-                              {delayInfo.text}
-                            </span>
-                          )}
-                        </div>
+                              {route.longName && (
+                                <div className="text-xs text-muted-foreground mb-1 truncate max-w-[280px]">
+                                  {route.longName}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span>Trip: {trip.tripId || '-'}</span>
                           {trip.vehicleId && <span>Όχημα: {trip.vehicleId}</span>}
