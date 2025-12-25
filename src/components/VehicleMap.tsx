@@ -1,9 +1,6 @@
-import { useEffect, useRef, useState, useMemo } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import "leaflet.markercluster/dist/MarkerCluster.css";
-import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-import "leaflet.markercluster";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { X, Navigation, MapPin, Clock, LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -17,53 +14,6 @@ interface VehicleMapProps {
   routeNamesMap?: Map<string, RouteInfo>;
   isLoading: boolean;
 }
-
-const createVehicleIcon = (bearing?: number, isFollowed?: boolean, routeColor?: string) => {
-  const rotation = bearing || 0;
-  const ringClass = isFollowed ? 'animate-ping' : 'animate-pulse-ring';
-  const bgColor = routeColor ? `#${routeColor}` : 'hsl(var(--primary))';
-  const glowStyle = isFollowed ? 'box-shadow: 0 0 0 2px #facc15;' : '';
-  
-  return L.divIcon({
-    className: 'vehicle-marker',
-    html: `
-      <div class="relative" style="transform: rotate(${rotation}deg)">
-        <div class="absolute inset-0 rounded ${ringClass} opacity-50" style="background: ${bgColor}"></div>
-        <div class="relative flex flex-col items-center">
-          <div style="width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid ${bgColor}; margin-bottom: -1px;"></div>
-          <div class="w-5 h-4 rounded-sm flex items-center justify-center shadow-md" style="background: ${bgColor}; ${glowStyle}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="14" rx="2"/>
-              <circle cx="7" cy="18" r="1.5" fill="white"/>
-              <circle cx="17" cy="18" r="1.5" fill="white"/>
-              <path d="M3 10h18"/>
-            </svg>
-          </div>
-        </div>
-      </div>
-    `,
-    iconSize: [20, 26],
-    iconAnchor: [10, 13],
-  });
-};
-
-const createStopIcon = (hasVehicleStopped?: boolean) => {
-  const bgColor = hasVehicleStopped ? '#22c55e' : '#f97316'; // green-500 or orange-500
-  return L.divIcon({
-    className: 'stop-marker',
-    html: `
-      <div class="w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white ${hasVehicleStopped ? 'animate-pulse' : ''}" style="background: ${bgColor}">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          ${hasVehicleStopped 
-            ? '<rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="7" cy="18" r="1.5" fill="white"/><circle cx="17" cy="18" r="1.5" fill="white"/>' 
-            : '<circle cx="12" cy="12" r="3"/>'}
-        </svg>
-      </div>
-    `,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-  });
-};
 
 const formatTimestamp = (timestamp?: number) => {
   if (!timestamp) return 'Άγνωστο';
@@ -100,16 +50,63 @@ const formatDelay = (delay?: number) => {
   return `(${minutes} λεπτά)`;
 };
 
+// Create vehicle marker element
+const createVehicleElement = (bearing?: number, isFollowed?: boolean, routeColor?: string) => {
+  const el = document.createElement('div');
+  el.className = 'vehicle-marker-maplibre';
+  const rotation = bearing || 0;
+  const bgColor = routeColor ? `#${routeColor}` : 'hsl(210, 100%, 50%)';
+  const glowStyle = isFollowed ? 'box-shadow: 0 0 0 3px #facc15;' : '';
+  
+  el.innerHTML = `
+    <div style="transform: rotate(${rotation}deg); position: relative;">
+      <div style="position: absolute; inset: 0; border-radius: 4px; background: ${bgColor}; opacity: 0.5; animation: pulse 2s infinite;"></div>
+      <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
+        <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 6px solid ${bgColor}; margin-bottom: -1px;"></div>
+        <div style="width: 22px; height: 18px; border-radius: 3px; display: flex; align-items: center; justify-content: center; background: ${bgColor}; ${glowStyle}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="14" rx="2"/>
+            <circle cx="7" cy="18" r="1.5" fill="white"/>
+            <circle cx="17" cy="18" r="1.5" fill="white"/>
+            <path d="M3 10h18"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  return el;
+};
+
+// Create stop marker element
+const createStopElement = (hasVehicleStopped?: boolean) => {
+  const el = document.createElement('div');
+  el.className = 'stop-marker-maplibre';
+  const bgColor = hasVehicleStopped ? '#22c55e' : '#f97316';
+  
+  el.innerHTML = `
+    <div style="width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${bgColor}; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        ${hasVehicleStopped 
+          ? '<rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="7" cy="18" r="1.5" fill="white"/><circle cx="17" cy="18" r="1.5" fill="white"/>' 
+          : '<circle cx="12" cy="12" r="3"/>'}
+      </svg>
+    </div>
+  `;
+  
+  return el;
+};
+
 export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, isLoading }: VehicleMapProps) {
-  const mapRef = useRef<L.Map | null>(null);
-  const vehicleMarkersRef = useRef<L.MarkerClusterGroup | null>(null);
-  const stopMarkersRef = useRef<L.MarkerClusterGroup | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const vehicleMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+  const stopMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+  const userMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const walkingRouteSourceRef = useRef<boolean>(false);
+  
   const [followedVehicleId, setFollowedVehicleId] = useState<string | null>(null);
   const [showStops, setShowStops] = useState(true);
-  const markerMapRef = useRef<Map<string, L.Marker>>(new Map());
-  const userLocationMarkerRef = useRef<L.Marker | null>(null);
-  const walkingRouteRef = useRef<L.Polyline | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -134,13 +131,12 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   }, [stops]);
 
   // Get next stop info for a vehicle
-  const getNextStopInfo = (vehicle: Vehicle) => {
+  const getNextStopInfo = useCallback((vehicle: Vehicle) => {
     if (!vehicle.tripId) return null;
     
     const trip = tripMap.get(vehicle.tripId);
     if (!trip?.stopTimeUpdates?.length) return null;
 
-    // Find the next stop based on current stop sequence
     const currentSeq = vehicle.currentStopSequence || 0;
     const nextStopUpdate = trip.stopTimeUpdates.find(
       stu => (stu.stopSequence || 0) >= currentSeq
@@ -155,10 +151,10 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       arrivalTime: nextStopUpdate.arrivalTime,
       arrivalDelay: nextStopUpdate.arrivalDelay,
     };
-  };
+  }, [tripMap, stopMap]);
 
   // Get arrivals for a specific stop
-  const getArrivalsForStop = (stopId: string) => {
+  const getArrivalsForStop = useCallback((stopId: string) => {
     const arrivals: Array<{
       tripId: string;
       routeId?: string;
@@ -176,7 +172,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       if (stopUpdate && stopUpdate.arrivalTime) {
         const routeInfo = trip.routeId && routeNamesMap ? routeNamesMap.get(trip.routeId) : null;
         
-        // Find associated vehicle
         const vehicle = vehicles.find(v => v.tripId === trip.tripId);
         
         arrivals.push({
@@ -193,155 +188,122 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       }
     });
 
-    // Sort by arrival time
     arrivals.sort((a, b) => (a.arrivalTime || 0) - (b.arrivalTime || 0));
     
-    // Return only next 5 arrivals
     return arrivals.slice(0, 5);
-  };
+  }, [trips, vehicles, routeNamesMap]);
 
   // Initialize map
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    mapRef.current = L.map(containerRef.current, {
-      center: [35.0, 33.0], // Center of Cyprus
+    mapRef.current = new maplibregl.Map({
+      container: containerRef.current,
+      style: {
+        version: 8,
+        sources: {
+          'satellite': {
+            type: 'raster',
+            tiles: [
+              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+            ],
+            tileSize: 256,
+            attribution: 'Tiles © Esri'
+          },
+          'labels': {
+            type: 'raster',
+            tiles: [
+              'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+            ],
+            tileSize: 256
+          }
+        },
+        layers: [
+          {
+            id: 'satellite-layer',
+            type: 'raster',
+            source: 'satellite',
+            minzoom: 0,
+            maxzoom: 22
+          },
+          {
+            id: 'labels-layer',
+            type: 'raster',
+            source: 'labels',
+            minzoom: 0,
+            maxzoom: 22
+          }
+        ]
+      },
+      center: [33.0, 35.0], // Center of Cyprus
       zoom: 9,
-      zoomControl: true,
+      pitch: 0,
+      bearing: 0,
     });
 
-    // Satellite imagery layer (ESRI World Imagery)
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-    }).addTo(mapRef.current);
+    // Add navigation controls
+    mapRef.current.addControl(new maplibregl.NavigationControl({
+      visualizePitch: true,
+      showCompass: true,
+      showZoom: true,
+    }), 'top-left');
 
-    // Labels overlay for street/place names
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '',
-    }).addTo(mapRef.current);
+    // Enable rotation with scroll (using right-click drag or ctrl+scroll)
+    mapRef.current.dragRotate.enable();
+    mapRef.current.touchZoomRotate.enableRotation();
 
-    vehicleMarkersRef.current = L.markerClusterGroup({
-      chunkedLoading: true,
-      spiderfyOnMaxZoom: true,
-      showCoverageOnHover: false,
-      maxClusterRadius: 50,
-      iconCreateFunction: (cluster) => {
-        const count = cluster.getChildCount();
-        return L.divIcon({
-          html: `<div class="marker-cluster"><div>${count}</div></div>`,
-          className: 'marker-cluster-container',
-          iconSize: L.point(40, 40),
+    // Add walking route source when map loads
+    mapRef.current.on('load', () => {
+      if (mapRef.current && !mapRef.current.getSource('walking-route')) {
+        mapRef.current.addSource('walking-route', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: []
+            }
+          }
         });
-      },
-    });
 
-    stopMarkersRef.current = L.markerClusterGroup({
-      chunkedLoading: true,
-      spiderfyOnMaxZoom: true,
-      showCoverageOnHover: false,
-      maxClusterRadius: 60,
-      disableClusteringAtZoom: 15,
-      iconCreateFunction: (cluster) => {
-        const count = cluster.getChildCount();
-        return L.divIcon({
-          html: `<div class="stop-cluster"><div>${count}</div></div>`,
-          className: 'stop-cluster-container',
-          iconSize: L.point(30, 30),
+        mapRef.current.addLayer({
+          id: 'walking-route-layer',
+          type: 'line',
+          source: 'walking-route',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 4,
+            'line-opacity': 0.8,
+            'line-dasharray': [2, 2]
+          }
         });
-      },
-    });
 
-    mapRef.current.addLayer(vehicleMarkersRef.current);
-    mapRef.current.addLayer(stopMarkersRef.current);
+        walkingRouteSourceRef.current = true;
+      }
+    });
 
     return () => {
+      // Clean up markers
+      vehicleMarkersRef.current.forEach(marker => marker.remove());
+      vehicleMarkersRef.current.clear();
+      stopMarkersRef.current.forEach(marker => marker.remove());
+      stopMarkersRef.current.clear();
+      userMarkerRef.current?.remove();
+      
       mapRef.current?.remove();
       mapRef.current = null;
     };
   }, []);
 
-  // Update vehicle markers when vehicles change
-  useEffect(() => {
-    if (!vehicleMarkersRef.current) return;
-
-    vehicleMarkersRef.current.clearLayers();
-    markerMapRef.current.clear();
-
-    const validVehicles = vehicles.filter(
-      (v) => v.latitude !== undefined && v.longitude !== undefined
-    );
-
-    validVehicles.forEach((vehicle) => {
-      const vehicleId = vehicle.vehicleId || vehicle.id;
-      const isFollowed = followedVehicleId === vehicleId;
-      
-      // Get route color
-      const routeInfo = vehicle.routeId && routeNamesMap ? routeNamesMap.get(vehicle.routeId) : null;
-      const routeColor = routeInfo?.route_color;
-      const routeName = routeInfo ? `${routeInfo.route_short_name} - ${routeInfo.route_long_name}` : vehicle.routeId;
-      
-      // Get next stop info
-      const nextStop = getNextStopInfo(vehicle);
-      
-      const marker = L.marker([vehicle.latitude!, vehicle.longitude!], {
-        icon: createVehicleIcon(vehicle.bearing, isFollowed, routeColor),
-      });
-
-      marker.on('click', () => {
-        setFollowedVehicleId(vehicleId);
-      });
-
-      const etaHtml = nextStop ? `
-        <div class="mt-2 pt-2 border-t border-border">
-          <div class="flex items-center gap-1 text-primary font-medium mb-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Επόμενη στάση
-          </div>
-          <div class="text-sm">
-            <div class="font-medium">${nextStop.stopName}</div>
-            ${nextStop.arrivalTime ? `<div class="text-muted-foreground">Άφιξη: <span class="text-foreground font-mono">${formatETA(nextStop.arrivalTime)}</span> ${formatDelay(nextStop.arrivalDelay)}</div>` : ''}
-          </div>
-        </div>
-      ` : '';
-
-      marker.bindPopup(`
-        <div class="p-3 min-w-[220px]">
-          <div class="font-semibold text-base mb-2 flex items-center gap-2">
-            <span class="inline-block w-3 h-3 rounded-full" style="background: ${routeColor ? `#${routeColor}` : 'hsl(var(--primary))'}"></span>
-            Όχημα ${vehicleId}
-          </div>
-          <div class="space-y-1.5 text-sm">
-            ${vehicle.label ? `<div class="flex justify-between"><span class="text-muted-foreground">Ετικέτα:</span><span class="font-mono">${vehicle.label}</span></div>` : ''}
-            ${routeName ? `<div class="flex justify-between gap-2"><span class="text-muted-foreground">Γραμμή:</span><span class="text-right font-medium" style="color: ${routeColor ? `#${routeColor}` : 'inherit'}">${routeName}</span></div>` : ''}
-            <div class="flex justify-between"><span class="text-muted-foreground">Ταχύτητα:</span><span>${formatSpeed(vehicle.speed)}</span></div>
-            ${vehicle.bearing !== undefined ? `<div class="flex justify-between"><span class="text-muted-foreground">Κατεύθυνση:</span><span>${vehicle.bearing.toFixed(0)}°</span></div>` : ''}
-            ${vehicle.currentStatus ? `<div class="flex justify-between"><span class="text-muted-foreground">Κατάσταση:</span><span>${vehicle.currentStatus}</span></div>` : ''}
-            <div class="flex justify-between pt-1 border-t border-border mt-2"><span class="text-muted-foreground">Ενημ:</span><span class="text-xs">${formatTimestamp(vehicle.timestamp)}</span></div>
-          </div>
-          ${etaHtml}
-        </div>
-      `, {
-        className: 'vehicle-popup',
-      });
-
-      markerMapRef.current.set(vehicleId, marker);
-      vehicleMarkersRef.current!.addLayer(marker);
-    });
-
-    // If not following a vehicle, fit bounds to show all
-    if (!followedVehicleId && validVehicles.length > 0 && mapRef.current) {
-      const bounds = L.latLngBounds(
-        validVehicles.map((v) => [v.latitude!, v.longitude!])
-      );
-      mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
-    }
-  }, [vehicles, followedVehicleId, routeNamesMap, tripMap, stopMap]);
-
   // Get stops with vehicles currently stopped
   const stopsWithVehicles = useMemo(() => {
     const stoppedAtStops = new Set<string>();
     vehicles.forEach(v => {
-      // STOPPED_AT status is typically "1" or "STOPPED_AT" in GTFS-RT
       const status = String(v.currentStatus);
       if (v.stopId && (status === 'STOPPED_AT' || status === '1')) {
         stoppedAtStops.add(v.stopId);
@@ -349,6 +311,177 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     });
     return stoppedAtStops;
   }, [vehicles]);
+
+  // Update vehicle markers when vehicles change
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const currentVehicleIds = new Set<string>();
+
+    const validVehicles = vehicles.filter(
+      (v) => v.latitude !== undefined && v.longitude !== undefined
+    );
+
+    validVehicles.forEach((vehicle) => {
+      const vehicleId = vehicle.vehicleId || vehicle.id;
+      currentVehicleIds.add(vehicleId);
+      
+      const isFollowed = followedVehicleId === vehicleId;
+      const routeInfo = vehicle.routeId && routeNamesMap ? routeNamesMap.get(vehicle.routeId) : null;
+      const routeColor = routeInfo?.route_color;
+      const routeName = routeInfo ? `${routeInfo.route_short_name} - ${routeInfo.route_long_name}` : vehicle.routeId;
+      const nextStop = getNextStopInfo(vehicle);
+
+      const existingMarker = vehicleMarkersRef.current.get(vehicleId);
+
+      if (existingMarker) {
+        // Update position
+        existingMarker.setLngLat([vehicle.longitude!, vehicle.latitude!]);
+        // Update element
+        const newEl = createVehicleElement(vehicle.bearing, isFollowed, routeColor);
+        newEl.style.cursor = 'pointer';
+        newEl.onclick = () => setFollowedVehicleId(vehicleId);
+        existingMarker.getElement().replaceWith(newEl);
+        // Need to update the marker's internal element reference
+        (existingMarker as any)._element = newEl;
+      } else {
+        // Create new marker
+        const el = createVehicleElement(vehicle.bearing, isFollowed, routeColor);
+        el.style.cursor = 'pointer';
+        el.onclick = () => setFollowedVehicleId(vehicleId);
+
+        const popup = new maplibregl.Popup({ offset: 25, className: 'vehicle-popup-maplibre' })
+          .setHTML(`
+            <div style="padding: 12px; min-width: 220px; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${routeColor ? `#${routeColor}` : '#3b82f6'}"></span>
+                Όχημα ${vehicleId}
+              </div>
+              <div style="font-size: 13px; color: #666;">
+                ${vehicle.label ? `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Ετικέτα:</span><span style="font-family: monospace;">${vehicle.label}</span></div>` : ''}
+                ${routeName ? `<div style="display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px;"><span>Γραμμή:</span><span style="text-align: right; font-weight: 500; color: ${routeColor ? `#${routeColor}` : 'inherit'}">${routeName}</span></div>` : ''}
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Ταχύτητα:</span><span>${formatSpeed(vehicle.speed)}</span></div>
+                ${vehicle.bearing !== undefined ? `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Κατεύθυνση:</span><span>${vehicle.bearing.toFixed(0)}°</span></div>` : ''}
+                ${vehicle.currentStatus ? `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Κατάσταση:</span><span>${vehicle.currentStatus}</span></div>` : ''}
+                <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid #e5e5e5; margin-top: 8px;"><span>Ενημ:</span><span style="font-size: 11px;">${formatTimestamp(vehicle.timestamp)}</span></div>
+              </div>
+              ${nextStop ? `
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e5e5;">
+                  <div style="display: flex; align-items: center; gap: 4px; color: #3b82f6; font-weight: 500; margin-bottom: 4px; font-size: 13px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Επόμενη στάση
+                  </div>
+                  <div style="font-size: 13px;">
+                    <div style="font-weight: 500;">${nextStop.stopName}</div>
+                    ${nextStop.arrivalTime ? `<div style="color: #666;">Άφιξη: <span style="font-family: monospace;">${formatETA(nextStop.arrivalTime)}</span> ${formatDelay(nextStop.arrivalDelay)}</div>` : ''}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `);
+
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([vehicle.longitude!, vehicle.latitude!])
+          .setPopup(popup)
+          .addTo(mapRef.current!);
+
+        vehicleMarkersRef.current.set(vehicleId, marker);
+      }
+    });
+
+    // Remove old markers
+    vehicleMarkersRef.current.forEach((marker, id) => {
+      if (!currentVehicleIds.has(id)) {
+        marker.remove();
+        vehicleMarkersRef.current.delete(id);
+      }
+    });
+
+    // Fit bounds if not following
+    if (!followedVehicleId && validVehicles.length > 0 && mapRef.current) {
+      const bounds = new maplibregl.LngLatBounds();
+      validVehicles.forEach(v => bounds.extend([v.longitude!, v.latitude!]));
+      mapRef.current.fitBounds(bounds, { padding: 50, maxZoom: 13 });
+    }
+  }, [vehicles, followedVehicleId, routeNamesMap, getNextStopInfo]);
+
+  // Update stop markers
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Remove existing stop markers
+    stopMarkersRef.current.forEach(marker => marker.remove());
+    stopMarkersRef.current.clear();
+
+    if (!showStops) return;
+
+    const validStops = stops.filter(
+      (s) => s.stop_lat !== undefined && s.stop_lon !== undefined
+    );
+
+    validStops.forEach((stop) => {
+      const hasVehicleStopped = stopsWithVehicles.has(stop.stop_id);
+      const arrivals = getArrivalsForStop(stop.stop_id);
+      
+      const el = createStopElement(hasVehicleStopped);
+
+      const statusColor = hasVehicleStopped ? '#22c55e' : '#f97316';
+      const statusText = hasVehicleStopped ? '<div style="color: #22c55e; font-weight: 500; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e5e5;">🚌 Λεωφορείο στη στάση</div>' : '';
+
+      let arrivalsHtml = '';
+      if (arrivals.length > 0) {
+        arrivalsHtml = `
+          <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e5e5e5;">
+            <div style="font-weight: 500; font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Επόμενες αφίξεις
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              ${arrivals.map(arr => {
+                const routeColor = arr.routeColor ? `#${arr.routeColor}` : '#0ea5e9';
+                const delayText = arr.arrivalDelay !== undefined && arr.arrivalDelay !== 0 
+                  ? `<span style="color: ${arr.arrivalDelay > 0 ? '#ef4444' : '#22c55e'}">${formatDelay(arr.arrivalDelay)}</span>` 
+                  : '';
+                return `
+                  <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                    <span style="font-weight: 700; padding: 2px 6px; border-radius: 4px; color: white; font-size: 11px; background: ${routeColor}">${arr.routeShortName || arr.routeId || '?'}</span>
+                    <span style="font-family: monospace; color: #3b82f6;">${formatETA(arr.arrivalTime)}</span>
+                    ${delayText}
+                    ${arr.vehicleLabel ? `<span style="color: #888; font-size: 11px;">(${arr.vehicleLabel})</span>` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      } else {
+        arrivalsHtml = '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e5e5; font-size: 13px; color: #888;">Δεν υπάρχουν προγραμματισμένες αφίξεις</div>';
+      }
+
+      const popup = new maplibregl.Popup({ offset: 15, className: 'stop-popup-maplibre' })
+        .setHTML(`
+          <div style="padding: 12px; min-width: 220px; max-width: 300px; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}"></span>
+              ${stop.stop_name || 'Στάση'}
+            </div>
+            <div style="font-size: 13px; color: #666;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>ID:</span><span style="font-family: monospace;">${stop.stop_id}</span></div>
+              ${stop.stop_code ? `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Κωδικός:</span><span style="font-family: monospace;">${stop.stop_code}</span></div>` : ''}
+            </div>
+            ${statusText}
+            ${arrivalsHtml}
+          </div>
+        `);
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([stop.stop_lon!, stop.stop_lat!])
+        .setPopup(popup)
+        .addTo(mapRef.current!);
+
+      stopMarkersRef.current.set(stop.stop_id, marker);
+    });
+  }, [stops, showStops, stopsWithVehicles, getArrivalsForStop]);
 
   // Handle user location
   const locateUser = () => {
@@ -361,29 +494,31 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         const { latitude, longitude } = position.coords;
         setUserLocation({ lat: latitude, lng: longitude });
         
-        // Create or update user location marker
-        if (userLocationMarkerRef.current) {
-          userLocationMarkerRef.current.setLatLng([latitude, longitude]);
+        if (userMarkerRef.current) {
+          userMarkerRef.current.setLngLat([longitude, latitude]);
         } else {
-          const userIcon = L.divIcon({
-            className: 'user-location-marker',
-            html: `
-              <div class="relative">
-                <div class="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-50"></div>
-                <div class="relative w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-lg"></div>
-              </div>
-            `,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8],
-          });
+          const el = document.createElement('div');
+          el.innerHTML = `
+            <div style="position: relative;">
+              <div style="position: absolute; inset: 0; background: #3b82f6; border-radius: 50%; animation: ping 1.5s infinite; opacity: 0.5;"></div>
+              <div style="position: relative; width: 16px; height: 16px; background: #3b82f6; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+            </div>
+          `;
           
-          userLocationMarkerRef.current = L.marker([latitude, longitude], { icon: userIcon })
-            .bindPopup('<div class="p-2 text-sm font-medium">📍 Η τοποθεσία σας</div>')
+          const popup = new maplibregl.Popup({ offset: 10 })
+            .setHTML('<div style="padding: 8px; font-size: 13px; font-weight: 500;">📍 Η τοποθεσία σας</div>');
+          
+          userMarkerRef.current = new maplibregl.Marker({ element: el })
+            .setLngLat([longitude, latitude])
+            .setPopup(popup)
             .addTo(mapRef.current!);
         }
         
-        // Pan to user location
-        mapRef.current?.setView([latitude, longitude], 15, { animate: true });
+        mapRef.current?.flyTo({
+          center: [longitude, latitude],
+          zoom: 15,
+          duration: 1000
+        });
         setIsLocating(false);
       },
       (error) => {
@@ -397,7 +532,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
 
   // Calculate distance between two points (Haversine formula)
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371e3; // Earth's radius in meters
+    const R = 6371e3;
     const φ1 = (lat1 * Math.PI) / 180;
     const φ2 = (lat2 * Math.PI) / 180;
     const Δφ = ((lat2 - lat1) * Math.PI) / 180;
@@ -408,7 +543,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
               Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    return R * c; // Distance in meters
+    return R * c;
   };
 
   // Find nearest stop to user location
@@ -435,7 +570,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     return nearestId ? { stopId: nearestId, distance: minDistance } : null;
   }, [userLocation, stops]);
 
-  // Get the actual stop object (stable reference when stopId doesn't change)
+  // Get the actual stop object
   const nearestStop = useMemo(() => {
     if (!nearestStopData) return null;
     const stop = stops.find(s => s.stop_id === nearestStopData.stopId);
@@ -461,127 +596,39 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       }
     });
     
-    // Sort by distance
     return stopsWithDistance.sort((a, b) => a.distance - b.distance);
   }, [userLocation, stops]);
 
-  // Calculate walking time (average walking speed ~5 km/h = 83.3 m/min)
-  const walkingTimeMinutes = useMemo(() => {
-    if (!nearestStop) return null;
-    return Math.ceil(nearestStop.distance / 83.3);
-  }, [nearestStop?.distance]);
-
-  // Draw walking route to nearest stop - only when stopId or userLocation changes
-  const nearestStopId = nearestStopData?.stopId;
-  const nearestStopLat = nearestStop?.stop.stop_lat;
-  const nearestStopLon = nearestStop?.stop.stop_lon;
-  
+  // Draw walking route to nearest stop
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !walkingRouteSourceRef.current) return;
 
-    // Remove existing route
-    if (walkingRouteRef.current) {
-      mapRef.current.removeLayer(walkingRouteRef.current);
-      walkingRouteRef.current = null;
-    }
+    const source = mapRef.current.getSource('walking-route') as maplibregl.GeoJSONSource;
+    if (!source) return;
 
-    // Draw new route if we have user location and nearest stop
-    if (userLocation && nearestStopLat && nearestStopLon) {
-      const routeCoords: L.LatLngExpression[] = [
-        [userLocation.lat, userLocation.lng],
-        [nearestStopLat, nearestStopLon]
-      ];
-
-      walkingRouteRef.current = L.polyline(routeCoords, {
-        color: '#3b82f6',
-        weight: 4,
-        opacity: 0.8,
-        dashArray: '10, 10',
-        className: 'walking-route'
-      }).addTo(mapRef.current);
-    }
-  }, [userLocation?.lat, userLocation?.lng, nearestStopId, nearestStopLat, nearestStopLon]);
-
-  // Update user location marker position
-  useEffect(() => {
-    if (!userLocation || !userLocationMarkerRef.current) return;
-    userLocationMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng]);
-  }, [userLocation]);
-
-  useEffect(() => {
-    if (!stopMarkersRef.current || !mapRef.current) return;
-
-    stopMarkersRef.current.clearLayers();
-
-    if (!showStops) return;
-
-    const validStops = stops.filter(
-      (s) => s.stop_lat !== undefined && s.stop_lon !== undefined
-    );
-
-    validStops.forEach((stop) => {
-      const hasVehicleStopped = stopsWithVehicles.has(stop.stop_id);
-      const arrivals = getArrivalsForStop(stop.stop_id);
-      
-      const marker = L.marker([stop.stop_lat!, stop.stop_lon!], {
-        icon: createStopIcon(hasVehicleStopped),
+    if (userLocation && nearestStop?.stop.stop_lat && nearestStop?.stop.stop_lon) {
+      source.setData({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [userLocation.lng, userLocation.lat],
+            [nearestStop.stop.stop_lon, nearestStop.stop.stop_lat]
+          ]
+        }
       });
-
-      const statusColor = hasVehicleStopped ? '#22c55e' : '#f97316';
-      const statusText = hasVehicleStopped ? '<div class="text-green-500 font-medium mt-2 pt-2 border-t border-border">🚌 Λεωφορείο στη στάση</div>' : '';
-
-      // Build arrivals HTML
-      let arrivalsHtml = '';
-      if (arrivals.length > 0) {
-        arrivalsHtml = `
-          <div class="mt-3 pt-2 border-t border-border">
-            <div class="font-medium text-sm mb-2 flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Επόμενες αφίξεις
-            </div>
-            <div class="space-y-2">
-              ${arrivals.map(arr => {
-                const routeColor = arr.routeColor ? `#${arr.routeColor}` : '#0ea5e9';
-                const delayText = arr.arrivalDelay !== undefined && arr.arrivalDelay !== 0 
-                  ? `<span class="${arr.arrivalDelay > 0 ? 'text-red-500' : 'text-green-500'}">${formatDelay(arr.arrivalDelay)}</span>` 
-                  : '';
-                return `
-                  <div class="flex items-center gap-2 text-sm">
-                    <span class="font-bold px-1.5 py-0.5 rounded text-white text-xs" style="background: ${routeColor}">${arr.routeShortName || arr.routeId || '?'}</span>
-                    <span class="font-mono text-primary">${formatETA(arr.arrivalTime)}</span>
-                    ${delayText}
-                    ${arr.vehicleLabel ? `<span class="text-muted-foreground text-xs">(${arr.vehicleLabel})</span>` : ''}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      } else {
-        arrivalsHtml = '<div class="mt-2 pt-2 border-t border-border text-sm text-muted-foreground">Δεν υπάρχουν προγραμματισμένες αφίξεις</div>';
-      }
-
-      marker.bindPopup(`
-        <div class="p-3 min-w-[220px] max-w-[300px]">
-          <div class="font-semibold text-base mb-2 flex items-center gap-2">
-            <span class="inline-block w-2 h-2 rounded-full" style="background: ${statusColor}"></span>
-            ${stop.stop_name || 'Στάση'}
-          </div>
-          <div class="space-y-1.5 text-sm">
-            <div class="flex justify-between"><span class="text-muted-foreground">ID:</span><span class="font-mono">${stop.stop_id}</span></div>
-            ${stop.stop_code ? `<div class="flex justify-between"><span class="text-muted-foreground">Κωδικός:</span><span class="font-mono">${stop.stop_code}</span></div>` : ''}
-          </div>
-          ${statusText}
-          ${arrivalsHtml}
-        </div>
-      `, {
-        className: 'stop-popup',
-        maxWidth: 320,
+    } else {
+      source.setData({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: []
+        }
       });
-
-      stopMarkersRef.current!.addLayer(marker);
-    });
-  }, [stops, showStops, stopsWithVehicles, trips, vehicles, routeNamesMap]);
+    }
+  }, [userLocation, nearestStop]);
 
   // Follow the selected vehicle in realtime
   useEffect(() => {
@@ -592,11 +639,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     );
 
     if (followedVehicle?.latitude && followedVehicle?.longitude) {
-      mapRef.current.setView(
-        [followedVehicle.latitude, followedVehicle.longitude],
-        16,
-        { animate: true, duration: 0.5 }
-      );
+      mapRef.current.flyTo({
+        center: [followedVehicle.longitude, followedVehicle.latitude],
+        zoom: 16,
+        duration: 500
+      });
     }
   }, [vehicles, followedVehicleId]);
 
@@ -675,6 +722,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         </div>
       )}
 
+      {/* Rotation hint */}
+      <div className="absolute top-4 left-14 glass-card rounded-lg px-2 py-1 z-[1000] text-xs text-muted-foreground">
+        Ctrl+Scroll ή δεξί κλικ για περιστροφή
+      </div>
+
       {/* Map controls */}
       <div className="absolute top-4 right-4 glass-card rounded-lg px-3 py-2 flex items-center gap-2 z-[1000]">
         <Switch
@@ -724,7 +776,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
                   }`}
                   onClick={() => {
                     if (item.stop.stop_lat && item.stop.stop_lon) {
-                      mapRef.current?.setView([item.stop.stop_lat, item.stop.stop_lon], 17, { animate: true });
+                      mapRef.current?.flyTo({
+                        center: [item.stop.stop_lon, item.stop.stop_lat],
+                        zoom: 17,
+                        duration: 500
+                      });
                     }
                   }}
                 >
@@ -768,6 +824,32 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         <span className="font-medium">{vehicles.filter(v => v.latitude && v.longitude).length}</span>
         <span className="text-muted-foreground ml-1">οχήματα</span>
       </div>
+
+      <style>{`
+        @keyframes ping {
+          75%, 100% {
+            transform: scale(2);
+            opacity: 0;
+          }
+        }
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 0.5;
+          }
+          50% {
+            opacity: 0.2;
+          }
+        }
+        .maplibregl-popup-content {
+          padding: 0 !important;
+          border-radius: 8px !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        }
+        .maplibregl-popup-close-button {
+          font-size: 18px !important;
+          padding: 4px 8px !important;
+        }
+      `}</style>
     </div>
   );
 }
