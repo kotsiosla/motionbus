@@ -145,18 +145,18 @@ export function TripsTable({ trips, isLoading, routeNames }: TripsTableProps) {
                                   </span>
                                 )}
                               </div>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1">
+                                <span>Trip: {trip.tripId || '-'}</span>
+                                {trip.vehicleId && <span>Όχημα: {trip.vehicleId}</span>}
+                              </div>
                               {route.longName && (
-                                <div className="text-xs text-muted-foreground mb-1 truncate max-w-[280px]">
+                                <div className="text-xs text-muted-foreground truncate max-w-[280px]">
                                   {route.longName}
                                 </div>
                               )}
                             </>
                           );
                         })()}
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>Trip: {trip.tripId || '-'}</span>
-                          {trip.vehicleId && <span>Όχημα: {trip.vehicleId}</span>}
-                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">
