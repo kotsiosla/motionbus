@@ -10,6 +10,7 @@ import {
 import { OperatorSelector } from "@/components/OperatorSelector";
 import { RouteSelector } from "@/components/RouteSelector";
 import type { RouteInfo } from "@/types/gtfs";
+import motionLogo from "@/assets/motion-logo.svg";
 
 interface HeaderProps {
   isDark: boolean;
@@ -57,17 +58,10 @@ export function Header({
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/30 rounded-lg blur-lg" />
-              <div className="relative bg-primary rounded-lg p-2">
-                <svg className="h-6 w-6 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M8 6v12M16 6v12M3 12h18M4 18h16a2 2 0 002-2V8a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              </div>
-            </div>
+            <img src={motionLogo} alt="Motion Logo" className="h-8" />
             <div>
               <h1 className="text-lg font-bold tracking-tight">GTFS Realtime</h1>
-              <p className="text-xs text-muted-foreground">Ζωντανή παρακολούθηση</p>
+              <p className="text-xs text-muted-foreground">Live Tracking</p>
             </div>
           </div>
 
