@@ -112,7 +112,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const audioContextRef = useRef<AudioContext | null>(null);
   
   const [followedVehicleId, setFollowedVehicleId] = useState<string | null>(null);
-  const [showStops, setShowStops] = useState(true);
+  const [showStops, setShowStops] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isNightMode, setIsNightMode] = useState(() => {
