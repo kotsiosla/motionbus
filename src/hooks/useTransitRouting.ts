@@ -174,27 +174,59 @@ export function useTransitRouting(
     }
   }, []);
 
-  // Set origin
+  // Set origin - snap to nearest stop within 400m
   const setOrigin = useCallback(async (lat: number, lon: number, name?: string) => {
-    const displayName = name || await reverseGeocode(lat, lon);
-    setState(prev => ({
-      ...prev,
-      origin: { lat, lon, name: displayName },
-      routes: [],
-      error: null,
-    }));
-  }, [reverseGeocode]);
+    const nearbyStops = findNearbyStops(lat, lon, 400);
+    
+    if (nearbyStops.length > 0) {
+      const nearestStop = nearbyStops[0];
+      setState(prev => ({
+        ...prev,
+        origin: { 
+          lat: nearestStop.stop_lat!, 
+          lon: nearestStop.stop_lon!, 
+          name: `📍 ${nearestStop.stop_name || nearestStop.stop_id} (${Math.round(nearestStop.distance)}μ)` 
+        },
+        routes: [],
+        error: null,
+      }));
+    } else {
+      const displayName = name || await reverseGeocode(lat, lon);
+      setState(prev => ({
+        ...prev,
+        origin: { lat, lon, name: displayName },
+        routes: [],
+        error: 'Δεν βρέθηκε στάση εντός 400μ',
+      }));
+    }
+  }, [reverseGeocode, findNearbyStops]);
 
-  // Set destination
+  // Set destination - snap to nearest stop within 400m
   const setDestination = useCallback(async (lat: number, lon: number, name?: string) => {
-    const displayName = name || await reverseGeocode(lat, lon);
-    setState(prev => ({
-      ...prev,
-      destination: { lat, lon, name: displayName },
-      routes: [],
-      error: null,
-    }));
-  }, [reverseGeocode]);
+    const nearbyStops = findNearbyStops(lat, lon, 400);
+    
+    if (nearbyStops.length > 0) {
+      const nearestStop = nearbyStops[0];
+      setState(prev => ({
+        ...prev,
+        destination: { 
+          lat: nearestStop.stop_lat!, 
+          lon: nearestStop.stop_lon!, 
+          name: `🎯 ${nearestStop.stop_name || nearestStop.stop_id} (${Math.round(nearestStop.distance)}μ)` 
+        },
+        routes: [],
+        error: null,
+      }));
+    } else {
+      const displayName = name || await reverseGeocode(lat, lon);
+      setState(prev => ({
+        ...prev,
+        destination: { lat, lon, name: displayName },
+        routes: [],
+        error: 'Δεν βρέθηκε στάση εντός 400μ',
+      }));
+    }
+  }, [reverseGeocode, findNearbyStops]);
 
   // Clear routing
   const clearRouting = useCallback(() => {
