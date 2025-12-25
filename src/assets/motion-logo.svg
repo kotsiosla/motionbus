@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 35">
+  <defs>
+    <linearGradient id="motionGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00A0E3"/>
+      <stop offset="50%" style="stop-color:#8DC63F"/>
+      <stop offset="100%" style="stop-color:#FDB913"/>
+    </linearGradient>
+  </defs>
+  <text x="2" y="26" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="28" fill="url(#motionGradient)">
+    motion
+  </text>
+</svg>
