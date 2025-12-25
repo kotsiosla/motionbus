@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff } from "lucide-react";
+import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -107,6 +107,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const userMarkerRef = useRef<maplibregl.Marker | null>(null);
   const walkingRouteSourceRef = useRef<boolean>(false);
   const notifiedArrivalsRef = useRef<Set<string>>(new Set());
+  const audioContextRef = useRef<AudioContext | null>(null);
   
   const [followedVehicleId, setFollowedVehicleId] = useState<string | null>(null);
   const [showStops, setShowStops] = useState(true);
@@ -118,6 +119,55 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   });
   const [isAutoNightMode, setIsAutoNightMode] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // Play notification sound using Web Audio API
+  const playNotificationSound = useCallback(() => {
+    if (!soundEnabled) return;
+    
+    try {
+      // Create or reuse AudioContext
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext();
+      }
+      const ctx = audioContextRef.current;
+      
+      // Resume if suspended (browser autoplay policy)
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      
+      const now = ctx.currentTime;
+      
+      // Create oscillator for a pleasant chime
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      // Two-tone chime (C5 and E5)
+      osc1.frequency.setValueAtTime(523.25, now); // C5
+      osc2.frequency.setValueAtTime(659.25, now); // E5
+      
+      osc1.type = 'sine';
+      osc2.type = 'sine';
+      
+      // Envelope: quick attack, gradual decay
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.3, now + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+      
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 0.5);
+      osc2.stop(now + 0.5);
+    } catch (error) {
+      console.error('Error playing notification sound:', error);
+    }
+  }, [soundEnabled]);
 
   // Auto night mode based on time of day
   useEffect(() => {
@@ -774,6 +824,9 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
           const secondsUntil = arrival.arrivalTime - now;
           const minutesUntil = Math.ceil(secondsUntil / 60);
           
+          // Play sound
+          playNotificationSound();
+          
           // Send notification
           toast({
             title: `🚌 ${arrival.routeShortName || 'Λεωφορείο'} σε ${minutesUntil} λεπ.`,
@@ -792,7 +845,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         notifiedArrivalsRef.current.delete(key);
       }
     });
-  }, [nearbyStops, trips, notificationsEnabled, getArrivalsForStop, toast]);
+  }, [nearbyStops, trips, notificationsEnabled, getArrivalsForStop, toast, playNotificationSound]);
 
   // Draw walking route to nearest stop
   useEffect(() => {
@@ -985,6 +1038,21 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
           <Bell className="h-4 w-4 text-green-500" />
         ) : (
           <BellOff className="h-4 w-4 text-muted-foreground" />
+        )}
+      </Button>
+
+      {/* Sound toggle */}
+      <Button
+        variant="secondary"
+        size="icon"
+        className={`absolute top-[12.5rem] right-4 z-[1000] glass-card h-9 w-9 ${soundEnabled ? 'ring-2 ring-blue-500/50' : ''}`}
+        onClick={() => setSoundEnabled(!soundEnabled)}
+        title={soundEnabled ? 'Απενεργοποίηση ήχου' : 'Ενεργοποίηση ήχου'}
+      >
+        {soundEnabled ? (
+          <Volume2 className="h-4 w-4 text-blue-500" />
+        ) : (
+          <VolumeX className="h-4 w-4 text-muted-foreground" />
         )}
       </Button>
 
