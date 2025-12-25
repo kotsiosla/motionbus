@@ -143,6 +143,7 @@ const Index = () => {
               <TripsTable
                 trips={filteredTrips}
                 isLoading={tripsQuery.isLoading}
+                routeNames={routeNamesMap}
               />
             </TabsContent>
 

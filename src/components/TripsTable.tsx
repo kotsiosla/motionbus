@@ -1,17 +1,17 @@
 import { useState, useMemo } from "react";
 import { Search, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import type { Trip } from "@/types/gtfs";
+import type { Trip, RouteInfo } from "@/types/gtfs";
 
 interface TripsTableProps {
   trips: Trip[];
   isLoading: boolean;
+  routeNames?: Map<string, RouteInfo>;
 }
 
 const formatDelay = (seconds?: number) => {
@@ -32,9 +32,23 @@ const formatTimestamp = (timestamp?: number) => {
   });
 };
 
-export function TripsTable({ trips, isLoading }: TripsTableProps) {
+export function TripsTable({ trips, isLoading, routeNames }: TripsTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedTrips, setExpandedTrips] = useState<Set<string>>(new Set());
+
+  const getRouteDisplay = (routeId?: string) => {
+    if (!routeId) return { shortName: 'N/A', longName: '', color: undefined, textColor: undefined };
+    const info = routeNames?.get(routeId);
+    if (info) {
+      return {
+        shortName: info.route_short_name || routeId,
+        longName: info.route_long_name || '',
+        color: info.route_color ? `#${info.route_color}` : undefined,
+        textColor: info.route_text_color ? `#${info.route_text_color}` : '#FFFFFF',
+      };
+    }
+    return { shortName: routeId, longName: '', color: undefined, textColor: undefined };
+  };
 
   const filteredTrips = useMemo(() => {
     if (!searchTerm) return trips;
@@ -109,9 +123,29 @@ export function TripsTable({ trips, isLoading }: TripsTableProps) {
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-sm font-medium truncate">
-                            {trip.routeId || 'N/A'}
-                          </span>
+                          {(() => {
+                            const route = getRouteDisplay(trip.routeId);
+                            return route.color ? (
+                              <div 
+                                className="px-2 py-0.5 rounded text-xs font-bold flex-shrink-0"
+                                style={{ backgroundColor: route.color, color: route.textColor }}
+                              >
+                                {route.shortName}
+                              </div>
+                            ) : (
+                              <span className="font-mono text-sm font-medium truncate">
+                                {route.shortName}
+                              </span>
+                            );
+                          })()}
+                          {(() => {
+                            const route = getRouteDisplay(trip.routeId);
+                            return route.longName && (
+                              <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                {route.longName}
+                              </span>
+                            );
+                          })()}
                           {delayInfo && (
                             <span className={`status-badge ${delayInfo.className}`}>
                               {delayInfo.text}
