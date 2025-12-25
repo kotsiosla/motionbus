@@ -60,15 +60,17 @@ export function RouteSelector({ value, onChange, routes, routeNames, disabled, i
     <div className="flex items-center gap-2">
       <Route className="h-4 w-4 text-muted-foreground" />
       <Select value={value} onValueChange={onChange} disabled={disabled || routes.length === 0}>
-        <SelectTrigger className="w-[280px] h-8 text-xs">
-          <div className="flex items-center gap-2">
+        <SelectTrigger className="w-full min-w-[320px] h-8 text-xs">
+          <div className="flex items-center gap-2 overflow-hidden">
             {selectedColor && (
               <div 
                 className="w-3 h-3 rounded-full flex-shrink-0 border border-border/50"
                 style={{ backgroundColor: selectedColor }}
               />
             )}
-            <SelectValue placeholder={isLoading ? "Φόρτωση..." : "Γραμμή"} />
+            <span className="truncate">
+              <SelectValue placeholder={isLoading ? "Φόρτωση..." : "Γραμμή"} />
+            </span>
           </div>
         </SelectTrigger>
         <SelectContent className="max-h-[300px] z-50 bg-popover">
@@ -92,7 +94,7 @@ export function RouteSelector({ value, onChange, routes, routeNames, disabled, i
                     <span className="font-medium">{getShortLabel(routeId)}</span>
                   )}
                   {routeNames?.get(routeId)?.route_long_name && (
-                    <span className="text-muted-foreground truncate max-w-[180px]">
+                    <span className="text-muted-foreground">
                       {routeNames.get(routeId)?.route_long_name}
                     </span>
                   )}
