@@ -458,7 +458,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         });
 
         walkingRouteSourceRef.current = true;
-        setMapLoaded(true);
 
         // Add route planning layers
         mapRef.current!.addSource('route-line', {
@@ -486,6 +485,9 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] }
         });
+
+        // Set map loaded AFTER all sources are added
+        setMapLoaded(true);
       }
     });
 
