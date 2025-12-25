@@ -60,7 +60,7 @@ export function RouteSelector({ value, onChange, routes, routeNames, disabled, i
     <div className="flex items-center gap-2">
       <Route className="h-4 w-4 text-muted-foreground" />
       <Select value={value} onValueChange={onChange} disabled={disabled || routes.length === 0}>
-        <SelectTrigger className="w-[160px] h-8 text-xs">
+        <SelectTrigger className="w-[280px] h-8 text-xs">
           <div className="flex items-center gap-2">
             {selectedColor && (
               <div 
