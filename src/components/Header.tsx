@@ -65,7 +65,7 @@ export function Header({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap justify-end">
+          <div className="flex items-start gap-3 flex-wrap justify-end">
             <div className="flex flex-col gap-1">
               <OperatorSelector
                 value={selectedOperator}
@@ -82,13 +82,6 @@ export function Header({
             </div>
 
             <div className="flex flex-col items-end gap-1">
-              {lastUpdate && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-warning animate-pulse' : 'bg-success'}`} />
-                  <span>Updated: {formatLastUpdate(lastUpdate)}</span>
-                </div>
-              )}
-
               <div className="flex items-center gap-2">
                 <RefreshCw className={`h-4 w-4 text-muted-foreground ${isLoading ? 'animate-spin' : ''}`} />
                 <Select
@@ -118,6 +111,12 @@ export function Header({
                   )}
                 </Button>
               </div>
+              {lastUpdate && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-warning animate-pulse' : 'bg-success'}`} />
+                  <span>Updated: {formatLastUpdate(lastUpdate)}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
