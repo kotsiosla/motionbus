@@ -22,17 +22,17 @@ const createVehicleIcon = (bearing?: number, isFollowed?: boolean, routeColor?: 
   const rotation = bearing || 0;
   const ringClass = isFollowed ? 'animate-ping' : 'animate-pulse-ring';
   const bgColor = routeColor ? `#${routeColor}` : 'hsl(var(--primary))';
-  const glowStyle = isFollowed ? 'box-shadow: 0 0 0 3px #facc15;' : '';
+  const glowStyle = isFollowed ? 'box-shadow: 0 0 0 2px #facc15;' : '';
   
   return L.divIcon({
     className: 'vehicle-marker',
     html: `
       <div class="relative" style="transform: rotate(${rotation}deg)">
-        <div class="absolute inset-0 rounded-lg ${ringClass} opacity-50" style="background: ${bgColor}"></div>
+        <div class="absolute inset-0 rounded ${ringClass} opacity-50" style="background: ${bgColor}"></div>
         <div class="relative flex flex-col items-center">
-          <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 8px solid ${bgColor}; margin-bottom: -2px;"></div>
-          <div class="w-8 h-6 rounded flex items-center justify-center shadow-lg" style="background: ${bgColor}; ${glowStyle}">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <div style="width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 5px solid ${bgColor}; margin-bottom: -1px;"></div>
+          <div class="w-5 h-4 rounded-sm flex items-center justify-center shadow-md" style="background: ${bgColor}; ${glowStyle}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="4" width="18" height="14" rx="2"/>
               <circle cx="7" cy="18" r="1.5" fill="white"/>
               <circle cx="17" cy="18" r="1.5" fill="white"/>
@@ -42,8 +42,8 @@ const createVehicleIcon = (bearing?: number, isFollowed?: boolean, routeColor?: 
         </div>
       </div>
     `,
-    iconSize: [32, 40],
-    iconAnchor: [16, 20],
+    iconSize: [20, 26],
+    iconAnchor: [10, 13],
   });
 };
 
