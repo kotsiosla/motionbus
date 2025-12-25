@@ -358,41 +358,43 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       
       {/* Following indicator */}
       {followedVehicle && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 glass-card rounded-lg px-4 py-2 z-[1000] max-w-[90%]">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 glass-card rounded-lg px-4 py-2 z-[1000] min-w-[280px] max-w-[95%]">
           <div className="flex items-center gap-3">
             <Navigation 
-              className="h-4 w-4 animate-pulse" 
+              className="h-4 w-4 animate-pulse flex-shrink-0" 
               style={{ color: followedRouteInfo?.route_color ? `#${followedRouteInfo.route_color}` : 'hsl(var(--primary))' }}
             />
-            <div className="text-sm">
-              <span className="text-muted-foreground">Παρακολούθηση: </span>
-              <span className="font-semibold">{followedVehicle.vehicleId || followedVehicle.id}</span>
+            <div className="text-sm flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-muted-foreground">Όχημα:</span>
+                <span className="font-semibold">{followedVehicle.label || followedVehicle.vehicleId || followedVehicle.id}</span>
+                {followedVehicle.speed !== undefined && (
+                  <span className="text-primary font-medium">{formatSpeed(followedVehicle.speed)}</span>
+                )}
+              </div>
               {followedRouteInfo && (
-                <span 
-                  className="ml-2 font-medium"
+                <div 
+                  className="font-medium mt-0.5"
                   style={{ color: followedRouteInfo.route_color ? `#${followedRouteInfo.route_color}` : 'inherit' }}
                 >
-                  ({followedRouteInfo.route_short_name})
-                </span>
-              )}
-              {followedVehicle.speed !== undefined && (
-                <span className="ml-2 text-primary">{formatSpeed(followedVehicle.speed)}</span>
+                  {followedRouteInfo.route_short_name} - {followedRouteInfo.route_long_name}
+                </div>
               )}
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6"
+              className="h-6 w-6 flex-shrink-0"
               onClick={() => setFollowedVehicleId(null)}
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
           {followedNextStop && (
-            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border text-sm">
-              <Clock className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">Επόμενη:</span>
-              <span className="font-medium truncate max-w-[150px]">{followedNextStop.stopName}</span>
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border text-sm flex-wrap">
+              <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <span className="text-muted-foreground">Επόμενη στάση:</span>
+              <span className="font-medium">{followedNextStop.stopName}</span>
               {followedNextStop.arrivalTime && (
                 <span className="font-mono text-primary">{formatETA(followedNextStop.arrivalTime)}</span>
               )}
