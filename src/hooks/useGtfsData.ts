@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Vehicle, Trip, Alert, GtfsResponse, RouteInfo, StaticStop, ShapePoint } from "@/types/gtfs";
+import type { Vehicle, Trip, Alert, GtfsResponse, RouteInfo, StaticStop, ShapePoint, TripShapeMapping } from "@/types/gtfs";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -70,6 +70,15 @@ export function useStaticShapes(operatorId?: string) {
   return useQuery({
     queryKey: ['static-shapes', operatorId],
     queryFn: () => fetchFromProxy<ShapePoint[]>('/shapes', operatorId),
+    staleTime: 60 * 60 * 1000, // 1 hour
+    gcTime: 24 * 60 * 60 * 1000, // 24 hours
+  });
+}
+
+export function useTripMappings(operatorId?: string) {
+  return useQuery({
+    queryKey: ['trip-mappings', operatorId],
+    queryFn: () => fetchFromProxy<TripShapeMapping[]>('/trip-mappings', operatorId),
     staleTime: 60 * 60 * 1000, // 1 hour
     gcTime: 24 * 60 * 60 * 1000, // 24 hours
   });

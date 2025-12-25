@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import type { Vehicle, StaticStop, Trip, RouteInfo, ShapePoint } from "@/types/gtfs";
+import type { Vehicle, StaticStop, Trip, RouteInfo, ShapePoint, TripShapeMapping } from "@/types/gtfs";
 import { useTransitRouting } from "@/hooks/useTransitRouting";
 import { RoutePlanner } from "@/components/RoutePlanner";
 
@@ -15,8 +15,10 @@ interface VehicleMapProps {
   trips?: Trip[];
   stops?: StaticStop[];
   shapes?: ShapePoint[];
+  tripMappings?: TripShapeMapping[];
   routeNamesMap?: Map<string, RouteInfo>;
   isLoading: boolean;
+  selectedRoute?: string;
 }
 
 const formatTimestamp = (timestamp?: number) => {
@@ -101,7 +103,7 @@ const createStopElement = (hasVehicleStopped?: boolean) => {
   return el;
 };
 
-export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], routeNamesMap, isLoading }: VehicleMapProps) {
+export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], tripMappings = [], routeNamesMap, isLoading, selectedRoute }: VehicleMapProps) {
   const { toast } = useToast();
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1012,14 +1014,50 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], rout
     });
   }, [nearbyStops, trips, notificationsEnabled, getArrivalsForStop, toast, playNotificationSound]);
 
-  // Display bus route shapes on map
+  // Display bus route shapes on map with route colors and filtering
   useEffect(() => {
     if (!mapRef.current || !shapesSourceRef.current || !mapLoaded) return;
 
     const source = mapRef.current.getSource('bus-shapes') as maplibregl.GeoJSONSource;
     if (!source) return;
 
-    if (shapes.length === 0) {
+    if (shapes.length === 0 || tripMappings.length === 0) {
+      source.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+
+    // Create route_id -> shape_ids mapping
+    const routeToShapes = new Map<string, Set<string>>();
+    const shapeToRoute = new Map<string, string>();
+    tripMappings.forEach(mapping => {
+      if (!routeToShapes.has(mapping.route_id)) {
+        routeToShapes.set(mapping.route_id, new Set());
+      }
+      routeToShapes.get(mapping.route_id)!.add(mapping.shape_id);
+      shapeToRoute.set(mapping.shape_id, mapping.route_id);
+    });
+
+    // Determine which shapes to show based on filtering
+    let shapesToShow: Set<string>;
+    
+    if (selectedRoute && selectedRoute !== 'all') {
+      // Show only the selected route's shapes
+      shapesToShow = routeToShapes.get(selectedRoute) || new Set();
+    } else if (followedVehicleId) {
+      // Show only the followed vehicle's route shapes
+      const followedVehicle = vehicles.find(v => v.id === followedVehicleId);
+      if (followedVehicle?.routeId) {
+        shapesToShow = routeToShapes.get(followedVehicle.routeId) || new Set();
+      } else {
+        shapesToShow = new Set();
+      }
+    } else {
+      // No filter - don't show any shapes to avoid clutter
+      source.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+
+    if (shapesToShow.size === 0) {
       source.setData({ type: 'FeatureCollection', features: [] });
       return;
     }
@@ -1027,6 +1065,8 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], rout
     // Group shape points by shape_id and sort by sequence
     const shapeGroups = new Map<string, { lat: number; lon: number; seq: number }[]>();
     shapes.forEach(point => {
+      if (!shapesToShow.has(point.shape_id)) return;
+      
       if (!shapeGroups.has(point.shape_id)) {
         shapeGroups.set(point.shape_id, []);
       }
@@ -1037,7 +1077,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], rout
       });
     });
 
-    // Create GeoJSON features for each shape
+    // Create GeoJSON features for each shape with route color
     const features: GeoJSON.Feature[] = [];
     shapeGroups.forEach((points, shapeId) => {
       // Sort by sequence
@@ -1047,11 +1087,17 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], rout
       const coordinates = points.map(p => [p.lon, p.lat]);
       
       if (coordinates.length > 1) {
+        // Get route color
+        const routeId = shapeToRoute.get(shapeId);
+        const routeInfo = routeId ? routeNamesMap?.get(routeId) : null;
+        const color = routeInfo?.route_color ? `#${routeInfo.route_color}` : '#3b82f6';
+        
         features.push({
           type: 'Feature',
           properties: { 
             shapeId,
-            color: '#3b82f6' // Default blue color
+            routeId,
+            color
           },
           geometry: {
             type: 'LineString',
@@ -1065,7 +1111,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], rout
       type: 'FeatureCollection',
       features
     });
-  }, [shapes, mapLoaded]);
+  }, [shapes, tripMappings, mapLoaded, selectedRoute, followedVehicleId, vehicles, routeNamesMap]);
 
   // Handle map click for route planning
   useEffect(() => {
