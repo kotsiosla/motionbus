@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun } from "lucide-react";
+import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import type { Vehicle, StaticStop, Trip, RouteInfo } from "@/types/gtfs";
 
 interface VehicleMapProps {
@@ -98,23 +99,25 @@ const createStopElement = (hasVehicleStopped?: boolean) => {
 };
 
 export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, isLoading }: VehicleMapProps) {
+  const { toast } = useToast();
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const vehicleMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const stopMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const userMarkerRef = useRef<maplibregl.Marker | null>(null);
   const walkingRouteSourceRef = useRef<boolean>(false);
+  const notifiedArrivalsRef = useRef<Set<string>>(new Set());
   
   const [followedVehicleId, setFollowedVehicleId] = useState<string | null>(null);
   const [showStops, setShowStops] = useState(true);
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isNightMode, setIsNightMode] = useState(() => {
-    // Initialize based on current time
     const hour = new Date().getHours();
     return hour >= 19 || hour < 6;
   });
   const [isAutoNightMode, setIsAutoNightMode] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   // Auto night mode based on time of day
   useEffect(() => {
@@ -744,6 +747,53 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     return stopsWithDistance.sort((a, b) => a.distance - b.distance);
   }, [userLocation, stops]);
 
+  // Check for imminent arrivals and send notifications
+  useEffect(() => {
+    if (!notificationsEnabled || nearbyStops.length === 0) return;
+
+    const now = Math.floor(Date.now() / 1000);
+    const twoMinutesFromNow = now + 120; // 2 minutes in seconds
+
+    nearbyStops.forEach(({ stop }) => {
+      const arrivals = getArrivalsForStop(stop.stop_id);
+      
+      arrivals.forEach(arrival => {
+        if (!arrival.arrivalTime) return;
+        
+        // Check if arrival is within 2 minutes
+        if (arrival.arrivalTime > now && arrival.arrivalTime <= twoMinutesFromNow) {
+          const notificationKey = `${stop.stop_id}-${arrival.tripId}-${arrival.arrivalTime}`;
+          
+          // Don't notify if we already did
+          if (notifiedArrivalsRef.current.has(notificationKey)) return;
+          
+          // Mark as notified
+          notifiedArrivalsRef.current.add(notificationKey);
+          
+          // Calculate time until arrival
+          const secondsUntil = arrival.arrivalTime - now;
+          const minutesUntil = Math.ceil(secondsUntil / 60);
+          
+          // Send notification
+          toast({
+            title: `🚌 ${arrival.routeShortName || 'Λεωφορείο'} σε ${minutesUntil} λεπ.`,
+            description: `Στάση: ${stop.stop_name || stop.stop_id}`,
+            duration: 8000,
+          });
+        }
+      });
+    });
+
+    // Clean up old notifications (older than 5 minutes)
+    const fiveMinutesAgo = now - 300;
+    notifiedArrivalsRef.current.forEach(key => {
+      const timestamp = parseInt(key.split('-').pop() || '0');
+      if (timestamp < fiveMinutesAgo) {
+        notifiedArrivalsRef.current.delete(key);
+      }
+    });
+  }, [nearbyStops, trips, notificationsEnabled, getArrivalsForStop, toast]);
+
   // Draw walking route to nearest stop
   useEffect(() => {
     if (!mapRef.current || !walkingRouteSourceRef.current) return;
@@ -921,6 +971,21 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         title="Εντοπισμός τοποθεσίας"
       >
         <LocateFixed className={`h-4 w-4 ${isLocating ? 'animate-pulse' : ''} ${userLocation ? 'text-blue-500' : ''}`} />
+      </Button>
+
+      {/* Notifications toggle */}
+      <Button
+        variant="secondary"
+        size="icon"
+        className={`absolute top-[10.5rem] right-4 z-[1000] glass-card h-9 w-9 ${notificationsEnabled ? 'ring-2 ring-green-500/50' : ''}`}
+        onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+        title={notificationsEnabled ? 'Απενεργοποίηση ειδοποιήσεων' : 'Ενεργοποίηση ειδοποιήσεων'}
+      >
+        {notificationsEnabled ? (
+          <Bell className="h-4 w-4 text-green-500" />
+        ) : (
+          <BellOff className="h-4 w-4 text-muted-foreground" />
+        )}
       </Button>
 
       {/* Nearby stops panel */}
