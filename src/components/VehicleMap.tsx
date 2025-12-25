@@ -22,23 +22,27 @@ const createVehicleIcon = (bearing?: number, isFollowed?: boolean, routeColor?: 
   const rotation = bearing || 0;
   const ringClass = isFollowed ? 'animate-ping' : 'animate-pulse-ring';
   const bgColor = routeColor ? `#${routeColor}` : 'hsl(var(--primary))';
-  const glowStyle = isFollowed ? 'ring: 2px solid #facc15;' : '';
+  const glowStyle = isFollowed ? 'box-shadow: 0 0 0 3px #facc15;' : '';
   
   return L.divIcon({
     className: 'vehicle-marker',
     html: `
-      <div class="relative" style="transform: rotate(${rotation}deg)">
+      <div class="relative">
         <div class="absolute inset-0 rounded-full ${ringClass} opacity-50" style="background: ${bgColor}"></div>
-        <div class="relative w-8 h-8 rounded-full flex items-center justify-center shadow-lg" style="background: ${bgColor}; ${glowStyle}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="0.5">
-            <path d="M12 2L4 12l8 10 8-10L12 2z"/>
-            <circle cx="12" cy="11" r="3" fill="none" stroke="white" stroke-width="1.5"/>
+        <div class="relative w-9 h-9 rounded-full flex items-center justify-center shadow-lg" style="background: ${bgColor}; ${glowStyle}; transform: rotate(${rotation}deg)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 6v6"/>
+            <path d="M15 6v6"/>
+            <path d="M2 12h19.6"/>
+            <path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H6C4.9 6 3.9 6.8 3.6 7.8l-1.4 5c-.1.4-.2.8-.2 1.2 0 .4.1.8.2 1.2.3 1.1.8 2.8.8 2.8h3"/>
+            <circle cx="7" cy="18" r="2"/>
+            <circle cx="17" cy="18" r="2"/>
           </svg>
         </div>
       </div>
     `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
   });
 };
 
