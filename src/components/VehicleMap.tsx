@@ -509,6 +509,15 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     if (!mapRef.current || !mapLoaded) return;
 
     const map = mapRef.current;
+    
+    // Ensure style is fully loaded before modifying
+    if (!map.isStyleLoaded()) {
+      map.once('style.load', () => {
+        // Re-trigger effect after style loads
+        setMapLoaded(prev => prev);
+      });
+      return;
+    }
 
     // Update satellite layer visibility
     if (map.getLayer('satellite-layer')) {
