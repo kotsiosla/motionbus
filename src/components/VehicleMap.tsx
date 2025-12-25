@@ -109,7 +109,37 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const [showStops, setShowStops] = useState(true);
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [isNightMode, setIsNightMode] = useState(false);
+  const [isNightMode, setIsNightMode] = useState(() => {
+    // Initialize based on current time
+    const hour = new Date().getHours();
+    return hour >= 19 || hour < 6;
+  });
+  const [isAutoNightMode, setIsAutoNightMode] = useState(true);
+
+  // Auto night mode based on time of day
+  useEffect(() => {
+    if (!isAutoNightMode) return;
+
+    const checkTime = () => {
+      const hour = new Date().getHours();
+      const shouldBeNight = hour >= 19 || hour < 6;
+      setIsNightMode(shouldBeNight);
+    };
+
+    // Check immediately
+    checkTime();
+
+    // Check every minute
+    const interval = setInterval(checkTime, 60000);
+
+    return () => clearInterval(interval);
+  }, [isAutoNightMode]);
+
+  // When user manually toggles, disable auto mode
+  const handleNightModeToggle = () => {
+    setIsAutoNightMode(false);
+    setIsNightMode(!isNightMode);
+  };
 
   // Create a map of tripId -> Trip for quick lookup
   const tripMap = useMemo(() => {
@@ -859,9 +889,9 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       <Button
         variant="secondary"
         size="icon"
-        className="absolute top-16 right-4 z-[1000] glass-card h-9 w-9"
-        onClick={() => setIsNightMode(!isNightMode)}
-        title={isNightMode ? 'Λειτουργία ημέρας' : 'Λειτουργία νύχτας'}
+        className={`absolute top-16 right-4 z-[1000] glass-card h-9 w-9 ${isAutoNightMode ? 'ring-2 ring-primary/50' : ''}`}
+        onClick={handleNightModeToggle}
+        title={`${isNightMode ? 'Λειτουργία ημέρας' : 'Λειτουργία νύχτας'}${isAutoNightMode ? ' (αυτόματο)' : ''}`}
       >
         {isNightMode ? (
           <Sun className="h-4 w-4 text-yellow-500" />
@@ -870,11 +900,22 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         )}
       </Button>
 
+      {/* Auto night mode toggle */}
+      <Button
+        variant="secondary"
+        size="sm"
+        className={`absolute top-[6.5rem] right-4 z-[1000] glass-card h-7 px-2 text-[10px] ${isAutoNightMode ? 'bg-primary/20' : ''}`}
+        onClick={() => setIsAutoNightMode(!isAutoNightMode)}
+        title="Αυτόματη εναλλαγή βάσει ώρας"
+      >
+        {isAutoNightMode ? 'Αυτόματο ✓' : 'Αυτόματο'}
+      </Button>
+
       {/* Location button */}
       <Button
         variant="secondary"
         size="icon"
-        className="absolute top-[6.5rem] right-4 z-[1000] glass-card h-9 w-9"
+        className="absolute top-[8.5rem] right-4 z-[1000] glass-card h-9 w-9"
         onClick={locateUser}
         disabled={isLocating}
         title="Εντοπισμός τοποθεσίας"
