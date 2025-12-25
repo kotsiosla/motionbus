@@ -582,30 +582,106 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         el.style.cursor = 'pointer';
         el.onclick = () => setFollowedVehicleId(vehicleId);
 
-        const popup = new maplibregl.Popup({ offset: 25, className: 'vehicle-popup-maplibre' })
+        const popup = new maplibregl.Popup({ offset: 25, className: 'vehicle-popup-maplibre', maxWidth: 'none' })
           .setHTML(`
-            <div style="padding: 12px; min-width: 220px; font-family: system-ui, -apple-system, sans-serif;">
-              <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${routeColor ? `#${routeColor}` : '#3b82f6'}"></span>
-                Όχημα ${vehicleId}
+            <div style="
+              padding: 16px; 
+              min-width: 260px; 
+              font-family: system-ui, -apple-system, sans-serif;
+              background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+              border-radius: 16px;
+              border: 1px solid rgba(56, 189, 248, 0.2);
+              box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 30px rgba(56, 189, 248, 0.1);
+            ">
+              <div style="
+                font-weight: 700; 
+                font-size: 15px; 
+                margin-bottom: 12px; 
+                display: flex; 
+                align-items: center; 
+                gap: 10px;
+                color: #f8fafc;
+              ">
+                <span style="
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  width: 32px; 
+                  height: 32px; 
+                  border-radius: 10px; 
+                  background: ${routeColor ? `#${routeColor}` : '#3b82f6'};
+                  box-shadow: 0 0 15px ${routeColor ? `#${routeColor}80` : 'rgba(59, 130, 246, 0.5)'};
+                ">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M8 6v6m0 0v6m0-6h8M3 4a1 1 0 011-1h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4z"/>
+                  </svg>
+                </span>
+                <span>Όχημα ${vehicleId}</span>
               </div>
-              <div style="font-size: 13px; color: #666;">
-                ${vehicle.label ? `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Ετικέτα:</span><span style="font-family: monospace;">${vehicle.label}</span></div>` : ''}
-                ${routeName ? `<div style="display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px;"><span>Γραμμή:</span><span style="text-align: right; font-weight: 500; color: ${routeColor ? `#${routeColor}` : 'inherit'}">${routeName}</span></div>` : ''}
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Ταχύτητα:</span><span>${formatSpeed(vehicle.speed)}</span></div>
-                ${vehicle.bearing !== undefined ? `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Κατεύθυνση:</span><span>${vehicle.bearing.toFixed(0)}°</span></div>` : ''}
-                ${vehicle.currentStatus ? `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Κατάσταση:</span><span>${vehicle.currentStatus}</span></div>` : ''}
-                <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid #e5e5e5; margin-top: 8px;"><span>Ενημ:</span><span style="font-size: 11px;">${formatTimestamp(vehicle.timestamp)}</span></div>
+              <div style="font-size: 13px; color: #94a3b8;">
+                ${vehicle.label ? `
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 8px 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <span style="color: #64748b;">Ετικέτα</span>
+                    <span style="font-family: 'JetBrains Mono', monospace; color: #e2e8f0; font-size: 12px;">${vehicle.label}</span>
+                  </div>
+                ` : ''}
+                ${routeName ? `
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 8px 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <span style="color: #64748b;">Γραμμή</span>
+                    <span style="
+                      font-weight: 600; 
+                      color: #f8fafc;
+                      background: ${routeColor ? `#${routeColor}` : '#3b82f6'};
+                      padding: 3px 10px;
+                      border-radius: 6px;
+                      font-size: 12px;
+                    ">${routeName}</span>
+                  </div>
+                ` : ''}
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 8px 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                  <span style="color: #64748b;">Ταχύτητα</span>
+                  <span style="color: #22d3ee; font-weight: 500;">${formatSpeed(vehicle.speed)}</span>
+                </div>
+                ${vehicle.bearing !== undefined ? `
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 8px 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <span style="color: #64748b;">Κατεύθυνση</span>
+                    <span style="color: #e2e8f0;">${vehicle.bearing.toFixed(0)}°</span>
+                  </div>
+                ` : ''}
+                ${vehicle.currentStatus ? `
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 8px 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <span style="color: #64748b;">Κατάσταση</span>
+                    <span style="color: #a78bfa;">${vehicle.currentStatus}</span>
+                  </div>
+                ` : ''}
+                <div style="display: flex; justify-content: space-between; padding: 8px 10px; margin-top: 8px; border-top: 1px solid rgba(148, 163, 184, 0.1);">
+                  <span style="color: #64748b;">Ενημέρωση</span>
+                  <span style="font-size: 11px; color: #94a3b8; font-family: 'JetBrains Mono', monospace;">${formatTimestamp(vehicle.timestamp)}</span>
+                </div>
               </div>
               ${nextStop ? `
-                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e5e5;">
-                  <div style="display: flex; align-items: center; gap: 4px; color: #3b82f6; font-weight: 500; margin-bottom: 4px; font-size: 13px;">
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(56, 189, 248, 0.2);">
+                  <div style="
+                    display: flex; 
+                    align-items: center; 
+                    gap: 6px; 
+                    color: #22d3ee; 
+                    font-weight: 600; 
+                    margin-bottom: 8px; 
+                    font-size: 13px;
+                  ">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     Επόμενη στάση
                   </div>
-                  <div style="font-size: 13px;">
-                    <div style="font-weight: 500;">${nextStop.stopName}</div>
-                    ${nextStop.arrivalTime ? `<div style="color: #666;">Άφιξη: <span style="font-family: monospace;">${formatETA(nextStop.arrivalTime)}</span> ${formatDelay(nextStop.arrivalDelay)}</div>` : ''}
+                  <div style="font-size: 13px; background: rgba(34, 211, 238, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(34, 211, 238, 0.2);">
+                    <div style="font-weight: 600; color: #f8fafc; margin-bottom: 4px;">${nextStop.stopName}</div>
+                    ${nextStop.arrivalTime ? `
+                      <div style="color: #94a3b8; display: flex; align-items: center; gap: 6px;">
+                        <span>Άφιξη:</span>
+                        <span style="font-family: 'JetBrains Mono', monospace; color: #22d3ee;">${formatETA(nextStop.arrivalTime)}</span>
+                        ${formatDelay(nextStop.arrivalDelay)}
+                      </div>
+                    ` : ''}
                   </div>
                 </div>
               ` : ''}
