@@ -354,13 +354,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
               'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
             ],
             tileSize: 256
-          },
-          'openmaptiles': {
-            type: 'vector',
-            tiles: [
-              'https://api.maptiler.com/tiles/v3/{z}/{x}/{y}.pbf?key=get_your_own_OpIi9ZULNHzrESv6T2vL'
-            ],
-            maxzoom: 14
           }
         },
         layers: [
@@ -377,37 +370,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
             source: 'labels',
             minzoom: 0,
             maxzoom: 22
-          },
-          {
-            id: '3d-buildings',
-            source: 'openmaptiles',
-            'source-layer': 'building',
-            type: 'fill-extrusion',
-            minzoom: 14,
-            paint: {
-              'fill-extrusion-color': [
-                'interpolate',
-                ['linear'],
-                ['get', 'render_height'],
-                0, '#e8e0d8',
-                50, '#d4c8bc',
-                100, '#c0b0a0'
-              ],
-              'fill-extrusion-height': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                14, 0,
-                15, ['get', 'render_height']
-              ],
-              'fill-extrusion-base': [
-                'case',
-                ['>=', ['get', 'zoom'], 15],
-                ['get', 'render_min_height'],
-                0
-              ],
-              'fill-extrusion-opacity': 0.85
-            }
           }
         ]
       },
@@ -593,45 +555,19 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
 
       // Add dark layer if not exists
       if (!map.getLayer('carto-dark-layer')) {
-        // Insert before 3d-buildings layer
-        const buildingsLayer = map.getLayer('3d-buildings');
         map.addLayer({
           id: 'carto-dark-layer',
           type: 'raster',
           source: 'carto-dark',
           minzoom: 0,
           maxzoom: 22
-        }, buildingsLayer ? '3d-buildings' : undefined);
+        });
       }
       map.setLayoutProperty('carto-dark-layer', 'visibility', 'visible');
-
-      // Update 3D buildings color for night mode
-      if (map.getLayer('3d-buildings')) {
-        map.setPaintProperty('3d-buildings', 'fill-extrusion-color', [
-          'interpolate',
-          ['linear'],
-          ['get', 'render_height'],
-          0, '#1a1a2e',
-          50, '#16213e',
-          100, '#0f3460'
-        ]);
-      }
     } else {
       // Hide dark layer if exists
       if (map.getLayer('carto-dark-layer')) {
         map.setLayoutProperty('carto-dark-layer', 'visibility', 'none');
-      }
-
-      // Reset 3D buildings color
-      if (map.getLayer('3d-buildings')) {
-        map.setPaintProperty('3d-buildings', 'fill-extrusion-color', [
-          'interpolate',
-          ['linear'],
-          ['get', 'render_height'],
-          0, '#e8e0d8',
-          50, '#d4c8bc',
-          100, '#c0b0a0'
-        ]);
       }
     }
   }, [isNightMode, mapLoaded]);
@@ -723,6 +659,12 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
                 <span>Όχημα ${vehicleId}</span>
               </div>
               <div style="font-size: 13px; color: #94a3b8;">
+                ${vehicle.licensePlate ? `
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 8px 10px; background: rgba(34, 211, 238, 0.1); border-radius: 8px; border: 1px solid rgba(34, 211, 238, 0.2);">
+                    <span style="color: #64748b;">Αρ. Εγγραφής</span>
+                    <span style="font-family: 'JetBrains Mono', monospace; color: #22d3ee; font-weight: 600; font-size: 13px;">${vehicle.licensePlate}</span>
+                  </div>
+                ` : ''}
                 ${vehicle.label ? `
                   <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding: 8px 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
                     <span style="color: #64748b;">Ετικέτα</span>
