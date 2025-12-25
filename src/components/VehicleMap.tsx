@@ -85,6 +85,7 @@ const formatETA = (arrivalTime?: number) => {
   return date.toLocaleTimeString('el-GR', {
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   });
 };
 
