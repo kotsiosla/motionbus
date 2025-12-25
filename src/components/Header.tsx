@@ -71,19 +71,20 @@ export function Header({
           </div>
 
           <div className="flex items-center gap-3 flex-wrap justify-end">
-            <OperatorSelector
-              value={selectedOperator}
-              onChange={onOperatorChange}
-            />
-
-            <RouteSelector
-              value={selectedRoute}
-              onChange={onRouteChange}
-              routes={availableRoutes}
-              routeNames={routeNamesMap}
-              disabled={selectedOperator === 'all'}
-              isLoading={isRoutesLoading}
-            />
+            <div className="flex flex-col gap-1">
+              <OperatorSelector
+                value={selectedOperator}
+                onChange={onOperatorChange}
+              />
+              <RouteSelector
+                value={selectedRoute}
+                onChange={onRouteChange}
+                routes={availableRoutes}
+                routeNames={routeNamesMap}
+                disabled={selectedOperator === 'all'}
+                isLoading={isRoutesLoading}
+              />
+            </div>
 
             {lastUpdate && (
               <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
