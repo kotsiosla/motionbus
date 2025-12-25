@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { X, Navigation, MapPin, Clock, LocateFixed } from "lucide-react";
+import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -109,6 +109,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const [showStops, setShowStops] = useState(true);
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isNightMode, setIsNightMode] = useState(false);
 
   // Create a map of tripId -> Trip for quick lookup
   const tripMap = useMemo(() => {
@@ -338,6 +339,81 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       mapRef.current = null;
     };
   }, []);
+
+  // Handle night mode toggle
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const map = mapRef.current;
+
+    // Update satellite layer visibility
+    if (map.getLayer('satellite-layer')) {
+      map.setLayoutProperty('satellite-layer', 'visibility', isNightMode ? 'none' : 'visible');
+    }
+    if (map.getLayer('labels-layer')) {
+      map.setLayoutProperty('labels-layer', 'visibility', isNightMode ? 'none' : 'visible');
+    }
+
+    // Add or update dark base layers for night mode
+    if (isNightMode) {
+      // Add dark tiles source if not exists
+      if (!map.getSource('carto-dark')) {
+        map.addSource('carto-dark', {
+          type: 'raster',
+          tiles: [
+            'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+            'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+            'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
+          ],
+          tileSize: 256,
+          attribution: '© CartoDB © OpenStreetMap'
+        });
+      }
+
+      // Add dark layer if not exists
+      if (!map.getLayer('carto-dark-layer')) {
+        // Insert before 3d-buildings layer
+        const buildingsLayer = map.getLayer('3d-buildings');
+        map.addLayer({
+          id: 'carto-dark-layer',
+          type: 'raster',
+          source: 'carto-dark',
+          minzoom: 0,
+          maxzoom: 22
+        }, buildingsLayer ? '3d-buildings' : undefined);
+      }
+      map.setLayoutProperty('carto-dark-layer', 'visibility', 'visible');
+
+      // Update 3D buildings color for night mode
+      if (map.getLayer('3d-buildings')) {
+        map.setPaintProperty('3d-buildings', 'fill-extrusion-color', [
+          'interpolate',
+          ['linear'],
+          ['get', 'render_height'],
+          0, '#1a1a2e',
+          50, '#16213e',
+          100, '#0f3460'
+        ]);
+      }
+    } else {
+      // Hide dark layer if exists
+      if (map.getLayer('carto-dark-layer')) {
+        map.setLayoutProperty('carto-dark-layer', 'visibility', 'none');
+      }
+
+      // Reset 3D buildings color
+      if (map.getLayer('3d-buildings')) {
+        map.setPaintProperty('3d-buildings', 'fill-extrusion-color', [
+          'interpolate',
+          ['linear'],
+          ['get', 'render_height'],
+          0, '#e8e0d8',
+          50, '#d4c8bc',
+          100, '#c0b0a0'
+        ]);
+      }
+    }
+  }, [isNightMode]);
 
   // Get stops with vehicles currently stopped
   const stopsWithVehicles = useMemo(() => {
@@ -779,11 +855,26 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         </Label>
       </div>
 
-      {/* Location button */}
+      {/* Night mode button */}
       <Button
         variant="secondary"
         size="icon"
         className="absolute top-16 right-4 z-[1000] glass-card h-9 w-9"
+        onClick={() => setIsNightMode(!isNightMode)}
+        title={isNightMode ? 'Λειτουργία ημέρας' : 'Λειτουργία νύχτας'}
+      >
+        {isNightMode ? (
+          <Sun className="h-4 w-4 text-yellow-500" />
+        ) : (
+          <Moon className="h-4 w-4" />
+        )}
+      </Button>
+
+      {/* Location button */}
+      <Button
+        variant="secondary"
+        size="icon"
+        className="absolute top-[6.5rem] right-4 z-[1000] glass-card h-9 w-9"
         onClick={locateUser}
         disabled={isLocating}
         title="Εντοπισμός τοποθεσίας"
