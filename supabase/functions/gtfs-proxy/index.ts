@@ -712,9 +712,10 @@ const GTFS_STATIC_URLS: Record<string, string> = {
   '11': 'https://www.motionbuscard.org.cy/opendata/downloadfile?file=GTFS%5C11_google_transit.zip&rel=True', // PAME EXPRESS
 };
 
-// Simple in-memory cache for routes and stops
+// Simple in-memory cache for routes, stops, and shapes
 const routesCache: Map<string, { data: RouteInfo[]; timestamp: number }> = new Map();
 const stopsCache: Map<string, { data: StopInfo[]; timestamp: number }> = new Map();
+const shapesCache: Map<string, { data: ShapePoint[]; timestamp: number }> = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 interface RouteInfo {
@@ -734,6 +735,13 @@ interface StopInfo {
   stop_code?: string;
   location_type?: number;
   parent_station?: string;
+}
+
+interface ShapePoint {
+  shape_id: string;
+  shape_pt_lat: number;
+  shape_pt_lon: number;
+  shape_pt_sequence: number;
 }
 
 async function unzipAndParseRoutes(zipData: Uint8Array): Promise<RouteInfo[]> {
@@ -982,6 +990,163 @@ async function unzipAndParseStops(zipData: Uint8Array): Promise<StopInfo[]> {
   return stops;
 }
 
+async function unzipAndParseShapes(zipData: Uint8Array): Promise<ShapePoint[]> {
+  let offset = 0;
+  const shapes: ShapePoint[] = [];
+  
+  while (offset < zipData.length - 4) {
+    if (zipData[offset] === 0x50 && zipData[offset + 1] === 0x4b && 
+        zipData[offset + 2] === 0x03 && zipData[offset + 3] === 0x04) {
+      
+      const view = new DataView(zipData.buffer, zipData.byteOffset + offset);
+      const compressionMethod = view.getUint16(8, true);
+      const compressedSize = view.getUint32(18, true);
+      const uncompressedSize = view.getUint32(22, true);
+      const fileNameLength = view.getUint16(26, true);
+      const extraFieldLength = view.getUint16(28, true);
+      
+      const fileNameStart = offset + 30;
+      const fileName = new TextDecoder().decode(zipData.slice(fileNameStart, fileNameStart + fileNameLength));
+      
+      const dataStart = fileNameStart + fileNameLength + extraFieldLength;
+      
+      if (fileName === 'shapes.txt') {
+        let fileContent: string;
+        
+        if (compressionMethod === 0) {
+          fileContent = new TextDecoder().decode(zipData.slice(dataStart, dataStart + uncompressedSize));
+        } else if (compressionMethod === 8) {
+          try {
+            const compressedData = zipData.slice(dataStart, dataStart + compressedSize);
+            const ds = new DecompressionStream('deflate-raw');
+            const writer = ds.writable.getWriter();
+            const reader = ds.readable.getReader();
+            
+            writer.write(compressedData);
+            writer.close();
+            
+            const chunks: Uint8Array[] = [];
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+            }
+            
+            const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+            const decompressed = new Uint8Array(totalLength);
+            let position = 0;
+            for (const chunk of chunks) {
+              decompressed.set(chunk, position);
+              position += chunk.length;
+            }
+            
+            fileContent = new TextDecoder().decode(decompressed);
+          } catch (e) {
+            console.error('Failed to decompress shapes.txt:', e);
+            break;
+          }
+        } else {
+          console.log(`Unsupported compression method: ${compressionMethod}`);
+          break;
+        }
+        
+        // Parse CSV
+        const lines = fileContent.split('\n');
+        if (lines.length > 0) {
+          const header = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+          const shapeIdIdx = header.indexOf('shape_id');
+          const latIdx = header.indexOf('shape_pt_lat');
+          const lonIdx = header.indexOf('shape_pt_lon');
+          const seqIdx = header.indexOf('shape_pt_sequence');
+          
+          for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            const values: string[] = [];
+            let current = '';
+            let inQuotes = false;
+            for (const char of line) {
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            values.push(current.trim());
+            
+            if (shapeIdIdx >= 0 && latIdx >= 0 && lonIdx >= 0 && seqIdx >= 0) {
+              const lat = parseFloat(values[latIdx]);
+              const lon = parseFloat(values[lonIdx]);
+              const seq = parseInt(values[seqIdx]);
+              
+              if (!isNaN(lat) && !isNaN(lon) && !isNaN(seq)) {
+                shapes.push({
+                  shape_id: values[shapeIdIdx] || '',
+                  shape_pt_lat: lat,
+                  shape_pt_lon: lon,
+                  shape_pt_sequence: seq,
+                });
+              }
+            }
+          }
+        }
+        break;
+      }
+      
+      offset = dataStart + compressedSize;
+    } else {
+      offset++;
+    }
+  }
+  
+  return shapes;
+}
+
+async function fetchStaticShapes(operatorId?: string): Promise<ShapePoint[]> {
+  const operators = operatorId && operatorId !== 'all' ? [operatorId] : Object.keys(GTFS_STATIC_URLS);
+  const allShapes: ShapePoint[] = [];
+  
+  for (const opId of operators) {
+    const cacheKey = `shapes_${opId}`;
+    const cached = shapesCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      allShapes.push(...cached.data);
+      continue;
+    }
+    
+    const url = GTFS_STATIC_URLS[opId];
+    if (!url) continue;
+    
+    try {
+      console.log(`Fetching static GTFS shapes for operator ${opId}`);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error(`Failed to fetch GTFS for operator ${opId}: ${response.status}`);
+        continue;
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const zipData = new Uint8Array(arrayBuffer);
+      
+      const shapes = await unzipAndParseShapes(zipData);
+      console.log(`Parsed ${shapes.length} shape points for operator ${opId}`);
+      
+      shapesCache.set(cacheKey, { data: shapes, timestamp: Date.now() });
+      allShapes.push(...shapes);
+    } catch (error) {
+      console.error(`Error fetching static GTFS shapes for operator ${opId}:`, error);
+    }
+  }
+  
+  return allShapes;
+}
+
 async function fetchStaticRoutes(operatorId?: string): Promise<RouteInfo[]> {
   const operators = operatorId && operatorId !== 'all' ? [operatorId] : Object.keys(GTFS_STATIC_URLS);
   const allRoutes: RouteInfo[] = [];
@@ -1114,6 +1279,24 @@ serve(async (req) => {
         }
       );
     }
+    
+    // Handle static shapes endpoint
+    if (path === '/shapes') {
+      const shapes = await fetchStaticShapes(operatorId);
+      return new Response(
+        JSON.stringify({
+          data: shapes,
+          timestamp: Date.now(),
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=3600',
+          } 
+        }
+      );
+    }
 
     const feed = await fetchGtfsData(operatorId);
     let data: unknown;
@@ -1134,7 +1317,7 @@ serve(async (req) => {
         break;
       default:
         return new Response(
-          JSON.stringify({ error: 'Not found', availableEndpoints: ['/feed', '/vehicles', '/trips', '/alerts', '/routes'] }),
+          JSON.stringify({ error: 'Not found', availableEndpoints: ['/feed', '/vehicles', '/trips', '/alerts', '/routes', '/stops', '/shapes'] }),
           { 
             status: 404, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

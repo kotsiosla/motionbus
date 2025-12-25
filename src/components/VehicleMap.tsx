@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import type { Vehicle, StaticStop, Trip, RouteInfo } from "@/types/gtfs";
+import type { Vehicle, StaticStop, Trip, RouteInfo, ShapePoint } from "@/types/gtfs";
 import { useTransitRouting } from "@/hooks/useTransitRouting";
 import { RoutePlanner } from "@/components/RoutePlanner";
 
@@ -14,6 +14,7 @@ interface VehicleMapProps {
   vehicles: Vehicle[];
   trips?: Trip[];
   stops?: StaticStop[];
+  shapes?: ShapePoint[];
   routeNamesMap?: Map<string, RouteInfo>;
   isLoading: boolean;
 }
@@ -100,14 +101,14 @@ const createStopElement = (hasVehicleStopped?: boolean) => {
   return el;
 };
 
-export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, isLoading }: VehicleMapProps) {
+export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], routeNamesMap, isLoading }: VehicleMapProps) {
   const { toast } = useToast();
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const vehicleMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const stopMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const userMarkerRef = useRef<maplibregl.Marker | null>(null);
-  const walkingRouteSourceRef = useRef<boolean>(false);
+  const shapesSourceRef = useRef<boolean>(false);
   const notifiedArrivalsRef = useRef<Set<string>>(new Set());
   const audioContextRef = useRef<AudioContext | null>(null);
   
@@ -426,38 +427,31 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     mapRef.current.dragRotate.enable();
     mapRef.current.touchZoomRotate.enableRotation();
 
-    // Add walking route source when map loads
+    // Add bus route shapes and route planning layers when map loads
     mapRef.current.on('load', () => {
-      if (mapRef.current && !mapRef.current.getSource('walking-route')) {
-        mapRef.current.addSource('walking-route', {
+      if (mapRef.current && !mapRef.current.getSource('bus-shapes')) {
+        // Add bus route shapes layer
+        mapRef.current.addSource('bus-shapes', {
           type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {},
-            geometry: {
-              type: 'LineString',
-              coordinates: []
-            }
-          }
+          data: { type: 'FeatureCollection', features: [] }
         });
 
         mapRef.current.addLayer({
-          id: 'walking-route-layer',
+          id: 'bus-shapes-layer',
           type: 'line',
-          source: 'walking-route',
+          source: 'bus-shapes',
           layout: {
             'line-join': 'round',
             'line-cap': 'round'
           },
           paint: {
-            'line-color': '#3b82f6',
+            'line-color': ['get', 'color'],
             'line-width': 4,
-            'line-opacity': 0.8,
-            'line-dasharray': [2, 2]
+            'line-opacity': 0.7
           }
         });
 
-        walkingRouteSourceRef.current = true;
+        shapesSourceRef.current = true;
 
         // Add route planning layers
         mapRef.current!.addSource('route-line', {
@@ -1018,36 +1012,60 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     });
   }, [nearbyStops, trips, notificationsEnabled, getArrivalsForStop, toast, playNotificationSound]);
 
-  // Draw walking route to nearest stop
+  // Display bus route shapes on map
   useEffect(() => {
-    if (!mapRef.current || !walkingRouteSourceRef.current) return;
+    if (!mapRef.current || !shapesSourceRef.current || !mapLoaded) return;
 
-    const source = mapRef.current.getSource('walking-route') as maplibregl.GeoJSONSource;
+    const source = mapRef.current.getSource('bus-shapes') as maplibregl.GeoJSONSource;
     if (!source) return;
 
-    if (userLocation && nearestStop?.stop.stop_lat && nearestStop?.stop.stop_lon) {
-      source.setData({
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: [
-            [userLocation.lng, userLocation.lat],
-            [nearestStop.stop.stop_lon, nearestStop.stop.stop_lat]
-          ]
-        }
-      });
-    } else {
-      source.setData({
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: []
-        }
-      });
+    if (shapes.length === 0) {
+      source.setData({ type: 'FeatureCollection', features: [] });
+      return;
     }
-  }, [userLocation, nearestStop]);
+
+    // Group shape points by shape_id and sort by sequence
+    const shapeGroups = new Map<string, { lat: number; lon: number; seq: number }[]>();
+    shapes.forEach(point => {
+      if (!shapeGroups.has(point.shape_id)) {
+        shapeGroups.set(point.shape_id, []);
+      }
+      shapeGroups.get(point.shape_id)!.push({
+        lat: point.shape_pt_lat,
+        lon: point.shape_pt_lon,
+        seq: point.shape_pt_sequence
+      });
+    });
+
+    // Create GeoJSON features for each shape
+    const features: GeoJSON.Feature[] = [];
+    shapeGroups.forEach((points, shapeId) => {
+      // Sort by sequence
+      points.sort((a, b) => a.seq - b.seq);
+      
+      // Create LineString coordinates
+      const coordinates = points.map(p => [p.lon, p.lat]);
+      
+      if (coordinates.length > 1) {
+        features.push({
+          type: 'Feature',
+          properties: { 
+            shapeId,
+            color: '#3b82f6' // Default blue color
+          },
+          geometry: {
+            type: 'LineString',
+            coordinates
+          }
+        });
+      }
+    });
+
+    source.setData({
+      type: 'FeatureCollection',
+      features
+    });
+  }, [shapes, mapLoaded]);
 
   // Handle map click for route planning
   useEffect(() => {

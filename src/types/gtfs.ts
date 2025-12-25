@@ -103,6 +103,13 @@ export interface StaticStop {
   parent_station?: string;
 }
 
+export interface ShapePoint {
+  shape_id: string;
+  shape_pt_lat: number;
+  shape_pt_lon: number;
+  shape_pt_sequence: number;
+}
+
 export interface OperatorInfo {
   id: string;
   name: string;
