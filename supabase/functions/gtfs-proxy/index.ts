@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GTFS_RT_URL = "http://20.19.98.194:8328/Api/api/gtfs-realtime";
+const GTFS_RT_BASE_URL = "http://20.19.98.194:8328/Api/api/gtfs-realtime";
 
 // GTFS-Realtime Protocol Buffer Parser
 // Based on the GTFS-RT specification: https://gtfs.org/realtime/reference/
@@ -572,12 +572,19 @@ interface EntitySelector {
   stopId?: string;
 }
 
-async function fetchGtfsData(): Promise<GtfsRealtimeFeed> {
+async function fetchGtfsData(operatorId?: string): Promise<GtfsRealtimeFeed> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
 
+  // Build URL with optional operator filter
+  const url = operatorId && operatorId !== 'all' 
+    ? `${GTFS_RT_BASE_URL}/${operatorId}` 
+    : GTFS_RT_BASE_URL;
+
+  console.log(`Fetching GTFS data from: ${url}`);
+
   try {
-    const response = await fetch(GTFS_RT_URL, {
+    const response = await fetch(url, {
       signal: controller.signal,
       headers: {
         'Accept': '*/*',
@@ -694,9 +701,12 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const path = url.pathname.replace('/gtfs-proxy', '');
+  const operatorId = url.searchParams.get('operator') || undefined;
+
+  console.log(`Request path: ${path}, operator: ${operatorId || 'all'}`);
 
   try {
-    const feed = await fetchGtfsData();
+    const feed = await fetchGtfsData(operatorId);
     let data: unknown;
 
     switch (path) {

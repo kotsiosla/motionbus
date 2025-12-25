@@ -1,4 +1,4 @@
-import { Bus, Moon, Sun, RefreshCw } from "lucide-react";
+import { Moon, Sun, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { OperatorSelector } from "@/components/OperatorSelector";
 
 interface HeaderProps {
   isDark: boolean;
@@ -15,6 +16,8 @@ interface HeaderProps {
   onRefreshIntervalChange: (interval: number) => void;
   lastUpdate: number | null;
   isLoading: boolean;
+  selectedOperator: string;
+  onOperatorChange: (operator: string) => void;
 }
 
 export function Header({
@@ -24,6 +27,8 @@ export function Header({
   onRefreshIntervalChange,
   lastUpdate,
   isLoading,
+  selectedOperator,
+  onOperatorChange,
 }: HeaderProps) {
   const formatLastUpdate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -42,7 +47,9 @@ export function Header({
             <div className="relative">
               <div className="absolute inset-0 bg-primary/30 rounded-lg blur-lg" />
               <div className="relative bg-primary rounded-lg p-2">
-                <Bus className="h-6 w-6 text-primary-foreground" />
+                <svg className="h-6 w-6 text-primary-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 6v12M16 6v12M3 12h18M4 18h16a2 2 0 002-2V8a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
               </div>
             </div>
             <div>
@@ -51,7 +58,12 @@ export function Header({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            <OperatorSelector
+              value={selectedOperator}
+              onChange={onOperatorChange}
+            />
+
             {lastUpdate && (
               <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
                 <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-warning animate-pulse' : 'bg-success'}`} />

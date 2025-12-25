@@ -1,11 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import type { Vehicle, Trip, Alert, GtfsResponse } from "@/types/gtfs";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
-async function fetchFromProxy<T>(endpoint: string): Promise<GtfsResponse<T>> {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/gtfs-proxy${endpoint}`, {
+async function fetchFromProxy<T>(endpoint: string, operatorId?: string): Promise<GtfsResponse<T>> {
+  const params = operatorId && operatorId !== 'all' 
+    ? `?operator=${operatorId}` 
+    : '';
+  
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/gtfs-proxy${endpoint}${params}`, {
     headers: {
       'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
@@ -18,28 +21,28 @@ async function fetchFromProxy<T>(endpoint: string): Promise<GtfsResponse<T>> {
   return response.json();
 }
 
-export function useVehicles(refreshInterval: number) {
+export function useVehicles(refreshInterval: number, operatorId?: string) {
   return useQuery({
-    queryKey: ['vehicles'],
-    queryFn: () => fetchFromProxy<Vehicle[]>('/vehicles'),
+    queryKey: ['vehicles', operatorId],
+    queryFn: () => fetchFromProxy<Vehicle[]>('/vehicles', operatorId),
     refetchInterval: refreshInterval * 1000,
     staleTime: (refreshInterval * 1000) / 2,
   });
 }
 
-export function useTrips(refreshInterval: number) {
+export function useTrips(refreshInterval: number, operatorId?: string) {
   return useQuery({
-    queryKey: ['trips'],
-    queryFn: () => fetchFromProxy<Trip[]>('/trips'),
+    queryKey: ['trips', operatorId],
+    queryFn: () => fetchFromProxy<Trip[]>('/trips', operatorId),
     refetchInterval: refreshInterval * 1000,
     staleTime: (refreshInterval * 1000) / 2,
   });
 }
 
-export function useAlerts(refreshInterval: number) {
+export function useAlerts(refreshInterval: number, operatorId?: string) {
   return useQuery({
-    queryKey: ['alerts'],
-    queryFn: () => fetchFromProxy<Alert[]>('/alerts'),
+    queryKey: ['alerts', operatorId],
+    queryFn: () => fetchFromProxy<Alert[]>('/alerts', operatorId),
     refetchInterval: refreshInterval * 1000,
     staleTime: (refreshInterval * 1000) / 2,
   });

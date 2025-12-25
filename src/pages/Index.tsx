@@ -13,10 +13,11 @@ const Index = () => {
   const [isDark, setIsDark] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(10);
   const [activeTab, setActiveTab] = useState("map");
+  const [selectedOperator, setSelectedOperator] = useState("all");
 
-  const vehiclesQuery = useVehicles(refreshInterval);
-  const tripsQuery = useTrips(refreshInterval);
-  const alertsQuery = useAlerts(refreshInterval);
+  const vehiclesQuery = useVehicles(refreshInterval, selectedOperator);
+  const tripsQuery = useTrips(refreshInterval, selectedOperator);
+  const alertsQuery = useAlerts(refreshInterval, selectedOperator);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
@@ -49,6 +50,8 @@ const Index = () => {
         onRefreshIntervalChange={setRefreshInterval}
         lastUpdate={lastUpdate || null}
         isLoading={isLoading}
+        selectedOperator={selectedOperator}
+        onOperatorChange={setSelectedOperator}
       />
 
       {hasError && (

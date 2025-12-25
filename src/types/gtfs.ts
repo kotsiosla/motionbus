@@ -83,3 +83,20 @@ export interface StopInfo {
     departureDelay?: number;
   }[];
 }
+
+export interface OperatorInfo {
+  id: string;
+  name: string;
+  city?: string;
+}
+
+export const OPERATORS: OperatorInfo[] = [
+  { id: 'all', name: 'Όλοι οι φορείς' },
+  { id: '2', name: 'OSYPA', city: 'Πάφος' },
+  { id: '4', name: 'OSEA', city: 'Αμμόχωστος' },
+  { id: '5', name: 'Υπεραστικά' },
+  { id: '6', name: 'EMEL', city: 'Λεμεσός' },
+  { id: '9', name: 'NPT', city: 'Λευκωσία' },
+  { id: '10', name: 'LPT', city: 'Λάρνακα' },
+  { id: '11', name: 'PAME EXPRESS' },
+];
