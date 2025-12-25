@@ -1170,7 +1170,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       <Button
         variant="default"
         size="sm"
-        className="absolute top-4 left-4 z-[1000] gap-2"
+        className="absolute bottom-16 left-4 z-[1000] gap-2 shadow-lg"
         onClick={() => setShowRoutePlanner(true)}
       >
         <Route className="h-4 w-4" />
