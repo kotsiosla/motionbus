@@ -31,8 +31,15 @@ const Index = () => {
     return routeMap;
   }, [staticRoutesQuery.data]);
 
-  // Extract unique routes from data
+  // Get all available routes from static data, fallback to realtime data
   const availableRoutes = useMemo(() => {
+    // First try to get routes from static GTFS data
+    const staticRoutes = staticRoutesQuery.data?.data?.map(r => r.route_id) || [];
+    if (staticRoutes.length > 0) {
+      return staticRoutes;
+    }
+    
+    // Fallback: extract unique routes from realtime data
     const routeSet = new Set<string>();
     vehiclesQuery.data?.data?.forEach(v => {
       if (v.routeId) routeSet.add(v.routeId);
@@ -41,7 +48,7 @@ const Index = () => {
       if (t.routeId) routeSet.add(t.routeId);
     });
     return Array.from(routeSet);
-  }, [vehiclesQuery.data, tripsQuery.data]);
+  }, [staticRoutesQuery.data, vehiclesQuery.data, tripsQuery.data]);
 
   // Reset route when operator changes
   useEffect(() => {
