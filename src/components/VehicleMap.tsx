@@ -109,6 +109,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const [showStops, setShowStops] = useState(true);
   const markerMapRef = useRef<Map<string, L.Marker>>(new Map());
   const userLocationMarkerRef = useRef<L.Marker | null>(null);
+  const walkingRouteRef = useRef<L.Polyline | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -426,6 +427,39 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     return nearest;
   }, [userLocation, stops]);
 
+  // Calculate walking time (average walking speed ~5 km/h = 83.3 m/min)
+  const walkingTimeMinutes = useMemo(() => {
+    if (!nearestStop) return null;
+    return Math.ceil(nearestStop.distance / 83.3);
+  }, [nearestStop]);
+
+  // Draw walking route to nearest stop
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Remove existing route
+    if (walkingRouteRef.current) {
+      mapRef.current.removeLayer(walkingRouteRef.current);
+      walkingRouteRef.current = null;
+    }
+
+    // Draw new route if we have user location and nearest stop
+    if (userLocation && nearestStop?.stop.stop_lat && nearestStop?.stop.stop_lon) {
+      const routeCoords: L.LatLngExpression[] = [
+        [userLocation.lat, userLocation.lng],
+        [nearestStop.stop.stop_lat, nearestStop.stop.stop_lon]
+      ];
+
+      walkingRouteRef.current = L.polyline(routeCoords, {
+        color: '#3b82f6',
+        weight: 4,
+        opacity: 0.8,
+        dashArray: '10, 10',
+        className: 'walking-route'
+      }).addTo(mapRef.current);
+    }
+  }, [userLocation, nearestStop]);
+
   // Update user location marker position
   useEffect(() => {
     if (!userLocation || !userLocationMarkerRef.current) return;
@@ -632,10 +666,23 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
             <span className="text-xs font-medium text-muted-foreground">Κοντινότερη στάση</span>
           </div>
           <div className="font-medium text-sm mb-1">{nearestStop.stop.stop_name || nearestStop.stop.stop_id}</div>
-          <div className="text-xs text-muted-foreground mb-2">
-            {nearestStop.distance < 1000 
-              ? `${Math.round(nearestStop.distance)} μέτρα` 
-              : `${(nearestStop.distance / 1000).toFixed(1)} χλμ`}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+            <span>
+              {nearestStop.distance < 1000 
+                ? `${Math.round(nearestStop.distance)} μ.` 
+                : `${(nearestStop.distance / 1000).toFixed(1)} χλμ`}
+            </span>
+            {walkingTimeMinutes !== null && (
+              <span className="flex items-center gap-1 text-blue-500 font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="5" r="2"/>
+                  <path d="M12 7v6"/>
+                  <path d="M9 20l3-7 3 7"/>
+                  <path d="M6 12h12"/>
+                </svg>
+                ~{walkingTimeMinutes} λεπτά περπάτημα
+              </span>
+            )}
           </div>
           {(() => {
             const arrivals = getArrivalsForStop(nearestStop.stop.stop_id);
