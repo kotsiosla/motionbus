@@ -153,6 +153,49 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     };
   };
 
+  // Get arrivals for a specific stop
+  const getArrivalsForStop = (stopId: string) => {
+    const arrivals: Array<{
+      tripId: string;
+      routeId?: string;
+      routeShortName?: string;
+      routeLongName?: string;
+      routeColor?: string;
+      vehicleLabel?: string;
+      vehicleId?: string;
+      arrivalTime?: number;
+      arrivalDelay?: number;
+    }> = [];
+
+    trips.forEach(trip => {
+      const stopUpdate = trip.stopTimeUpdates?.find(stu => stu.stopId === stopId);
+      if (stopUpdate && stopUpdate.arrivalTime) {
+        const routeInfo = trip.routeId && routeNamesMap ? routeNamesMap.get(trip.routeId) : null;
+        
+        // Find associated vehicle
+        const vehicle = vehicles.find(v => v.tripId === trip.tripId);
+        
+        arrivals.push({
+          tripId: trip.tripId || trip.id,
+          routeId: trip.routeId,
+          routeShortName: routeInfo?.route_short_name,
+          routeLongName: routeInfo?.route_long_name,
+          routeColor: routeInfo?.route_color,
+          vehicleLabel: vehicle?.label || trip.vehicleLabel,
+          vehicleId: vehicle?.vehicleId || trip.vehicleId,
+          arrivalTime: stopUpdate.arrivalTime,
+          arrivalDelay: stopUpdate.arrivalDelay,
+        });
+      }
+    });
+
+    // Sort by arrival time
+    arrivals.sort((a, b) => (a.arrivalTime || 0) - (b.arrivalTime || 0));
+    
+    // Return only next 5 arrivals
+    return arrivals.slice(0, 5);
+  };
+
   // Initialize map
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -311,15 +354,48 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
 
     validStops.forEach((stop) => {
       const hasVehicleStopped = stopsWithVehicles.has(stop.stop_id);
+      const arrivals = getArrivalsForStop(stop.stop_id);
+      
       const marker = L.marker([stop.stop_lat!, stop.stop_lon!], {
         icon: createStopIcon(hasVehicleStopped),
       });
 
       const statusColor = hasVehicleStopped ? '#22c55e' : '#f97316';
-      const statusText = hasVehicleStopped ? '<div class="text-green-500 font-medium mt-1">🚌 Λεωφορείο στη στάση</div>' : '';
+      const statusText = hasVehicleStopped ? '<div class="text-green-500 font-medium mt-2 pt-2 border-t border-border">🚌 Λεωφορείο στη στάση</div>' : '';
+
+      // Build arrivals HTML
+      let arrivalsHtml = '';
+      if (arrivals.length > 0) {
+        arrivalsHtml = `
+          <div class="mt-3 pt-2 border-t border-border">
+            <div class="font-medium text-sm mb-2 flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Επόμενες αφίξεις
+            </div>
+            <div class="space-y-2">
+              ${arrivals.map(arr => {
+                const routeColor = arr.routeColor ? `#${arr.routeColor}` : '#0ea5e9';
+                const delayText = arr.arrivalDelay !== undefined && arr.arrivalDelay !== 0 
+                  ? `<span class="${arr.arrivalDelay > 0 ? 'text-red-500' : 'text-green-500'}">${formatDelay(arr.arrivalDelay)}</span>` 
+                  : '';
+                return `
+                  <div class="flex items-center gap-2 text-sm">
+                    <span class="font-bold px-1.5 py-0.5 rounded text-white text-xs" style="background: ${routeColor}">${arr.routeShortName || arr.routeId || '?'}</span>
+                    <span class="font-mono text-primary">${formatETA(arr.arrivalTime)}</span>
+                    ${delayText}
+                    ${arr.vehicleLabel ? `<span class="text-muted-foreground text-xs">(${arr.vehicleLabel})</span>` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      } else {
+        arrivalsHtml = '<div class="mt-2 pt-2 border-t border-border text-sm text-muted-foreground">Δεν υπάρχουν προγραμματισμένες αφίξεις</div>';
+      }
 
       marker.bindPopup(`
-        <div class="p-3 min-w-[180px]">
+        <div class="p-3 min-w-[220px] max-w-[300px]">
           <div class="font-semibold text-base mb-2 flex items-center gap-2">
             <span class="inline-block w-2 h-2 rounded-full" style="background: ${statusColor}"></span>
             ${stop.stop_name || 'Στάση'}
@@ -329,14 +405,16 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
             ${stop.stop_code ? `<div class="flex justify-between"><span class="text-muted-foreground">Κωδικός:</span><span class="font-mono">${stop.stop_code}</span></div>` : ''}
           </div>
           ${statusText}
+          ${arrivalsHtml}
         </div>
       `, {
         className: 'stop-popup',
+        maxWidth: 320,
       });
 
       stopMarkersRef.current!.addLayer(marker);
     });
-  }, [stops, showStops]);
+  }, [stops, showStops, stopsWithVehicles, trips, vehicles, routeNamesMap]);
 
   // Follow the selected vehicle in realtime
   useEffect(() => {
