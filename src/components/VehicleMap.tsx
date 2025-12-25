@@ -120,6 +120,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const [isAutoNightMode, setIsAutoNightMode] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   // Play notification sound using Web Audio API
   const playNotificationSound = useCallback(() => {
@@ -407,6 +408,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         });
 
         walkingRouteSourceRef.current = true;
+        setMapLoaded(true);
       }
     });
 
@@ -425,7 +427,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
 
   // Handle night mode toggle
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !mapLoaded) return;
 
     const map = mapRef.current;
 
@@ -496,7 +498,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         ]);
       }
     }
-  }, [isNightMode]);
+  }, [isNightMode, mapLoaded]);
 
   // Get stops with vehicles currently stopped
   const stopsWithVehicles = useMemo(() => {
