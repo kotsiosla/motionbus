@@ -690,7 +690,12 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
         arrivalsHtml = '<div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; color: #64748b; text-align: center;">Δεν υπάρχουν προγραμματισμένες αφίξεις</div>';
       }
 
-      const popup = new maplibregl.Popup({ offset: 15, className: 'stop-popup-maplibre' })
+        const popup = new maplibregl.Popup({ 
+          offset: 15, 
+          className: 'stop-popup-maplibre',
+          maxWidth: 'none',
+          closeOnClick: true
+        })
         .setHTML(`
           <div style="padding: 14px; min-width: 240px; max-width: 320px; font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #f8fafc; border-radius: 12px;">
             <div style="font-weight: 600; font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">

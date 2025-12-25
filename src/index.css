@@ -240,3 +240,26 @@
   align-items: center;
   justify-content: center;
 }
+
+/* MapLibre GL Popup Styles */
+.maplibregl-popup {
+  z-index: 9999 !important;
+}
+
+.maplibregl-popup-content {
+  max-height: 70vh !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 16px !important;
+}
+
+.maplibregl-popup-close-button {
+  display: none !important;
+}
+
+.stop-popup-maplibre .maplibregl-popup-content {
+  max-width: 320px !important;
+  min-width: 280px !important;
+}
