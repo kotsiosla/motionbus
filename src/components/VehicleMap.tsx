@@ -663,23 +663,23 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       let arrivalsHtml = '';
       if (arrivals.length > 0) {
         arrivalsHtml = `
-          <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e5e5e5;">
-            <div style="font-weight: 500; font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <div style="font-weight: 500; font-size: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; color: #a5b4fc;">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               Επόμενες αφίξεις
             </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
               ${arrivals.map(arr => {
-                const routeColor = arr.routeColor ? `#${arr.routeColor}` : '#0ea5e9';
+                const routeColor = arr.routeColor ? `#${arr.routeColor}` : '#06b6d4';
                 const delayText = arr.arrivalDelay !== undefined && arr.arrivalDelay !== 0 
-                  ? `<span style="color: ${arr.arrivalDelay > 0 ? '#ef4444' : '#22c55e'}">${formatDelay(arr.arrivalDelay)}</span>` 
+                  ? `<span style="color: ${arr.arrivalDelay > 0 ? '#f87171' : '#4ade80'}; font-size: 11px;">${formatDelay(arr.arrivalDelay)}</span>` 
                   : '';
                 return `
-                  <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
-                    <span style="font-weight: 700; padding: 2px 6px; border-radius: 4px; color: white; font-size: 11px; background: ${routeColor}">${arr.routeShortName || arr.routeId || '?'}</span>
-                    <span style="font-family: monospace; color: #3b82f6;">${formatETA(arr.arrivalTime)}</span>
+                  <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 6px 8px; background: rgba(255,255,255,0.05); border-radius: 6px;">
+                    <span style="font-weight: 700; padding: 3px 8px; border-radius: 6px; color: white; font-size: 11px; background: ${routeColor}; box-shadow: 0 2px 8px ${routeColor}40;">${arr.routeShortName || arr.routeId || '?'}</span>
+                    <span style="font-family: monospace; color: #22d3ee; font-weight: 600;">${formatETA(arr.arrivalTime)}</span>
                     ${delayText}
-                    ${arr.vehicleLabel ? `<span style="color: #888; font-size: 11px;">(${arr.vehicleLabel})</span>` : ''}
+                    ${arr.vehicleLabel ? `<span style="color: #64748b; font-size: 10px;">(${arr.vehicleLabel})</span>` : ''}
                   </div>
                 `;
               }).join('')}
@@ -687,21 +687,21 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
           </div>
         `;
       } else {
-        arrivalsHtml = '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e5e5; font-size: 13px; color: #888;">Δεν υπάρχουν προγραμματισμένες αφίξεις</div>';
+        arrivalsHtml = '<div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; color: #64748b; text-align: center;">Δεν υπάρχουν προγραμματισμένες αφίξεις</div>';
       }
 
       const popup = new maplibregl.Popup({ offset: 15, className: 'stop-popup-maplibre' })
         .setHTML(`
-          <div style="padding: 12px; min-width: 220px; max-width: 300px; font-family: system-ui, -apple-system, sans-serif;">
-            <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}"></span>
-              ${stop.stop_name || 'Στάση'}
+          <div style="padding: 14px; min-width: 240px; max-width: 320px; font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #f8fafc; border-radius: 12px;">
+            <div style="font-weight: 600; font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+              <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
+              <span style="color: #f1f5f9;">${stop.stop_name || 'Στάση'}</span>
             </div>
-            <div style="font-size: 13px; color: #666;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>ID:</span><span style="font-family: monospace;">${stop.stop_id}</span></div>
-              ${stop.stop_code ? `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Κωδικός:</span><span style="font-family: monospace;">${stop.stop_code}</span></div>` : ''}
+            <div style="font-size: 12px; color: #94a3b8; background: rgba(255,255,255,0.05); padding: 8px 10px; border-radius: 8px; margin-bottom: 8px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>ID:</span><span style="font-family: monospace; color: #67e8f9;">${stop.stop_id}</span></div>
+              ${stop.stop_code ? `<div style="display: flex; justify-content: space-between;"><span>Κωδικός:</span><span style="font-family: monospace; color: #67e8f9;">${stop.stop_code}</span></div>` : ''}
             </div>
-            ${statusText}
+            ${hasVehicleStopped ? '<div style="color: #4ade80; font-weight: 500; padding: 8px 10px; background: rgba(74, 222, 128, 0.15); border-radius: 8px; font-size: 13px;">🚌 Λεωφορείο στη στάση</div>' : ''}
             ${arrivalsHtml}
           </div>
         `);
