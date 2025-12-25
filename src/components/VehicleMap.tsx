@@ -438,9 +438,9 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           data: { type: 'FeatureCollection', features: [] }
         });
 
-        // Base layer for route background
+        // Bus route shape layer (solid line with route color)
         mapRef.current.addLayer({
-          id: 'bus-shapes-bg-layer',
+          id: 'bus-shapes-layer',
           type: 'line',
           source: 'bus-shapes',
           layout: {
@@ -449,65 +449,63 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           },
           paint: {
             'line-color': ['get', 'color'],
-            'line-width': 6,
-            'line-opacity': 0.4
+            'line-width': 5,
+            'line-opacity': 0.8
           }
         });
 
-        // Animated dashed layer on top for direction animation
+        // Route label layer
         mapRef.current.addLayer({
-          id: 'bus-shapes-layer',
-          type: 'line',
+          id: 'bus-shapes-label',
+          type: 'symbol',
           source: 'bus-shapes',
           layout: {
-            'line-join': 'round',
-            'line-cap': 'butt'
+            'symbol-placement': 'line',
+            'text-field': ['get', 'routeName'],
+            'text-size': 12,
+            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+            'text-offset': [0, -1],
+            'text-anchor': 'center',
+            'symbol-spacing': 200
           },
           paint: {
-            'line-color': ['get', 'color'],
-            'line-width': 4,
-            'line-opacity': 0.9,
-            'line-dasharray': [0, 4, 3]
+            'text-color': '#ffffff',
+            'text-halo-color': ['get', 'color'],
+            'text-halo-width': 2
           }
         });
 
         shapesSourceRef.current = true;
-        
-        // Start dash animation
-        let dashOffset = 0;
-        const animateDashArray = () => {
-          if (!mapRef.current || !mapRef.current.getLayer('bus-shapes-layer')) return;
+
+        // Add click handler for route popup
+        mapRef.current.on('click', 'bus-shapes-layer', (e) => {
+          if (!mapRef.current || !e.features?.[0]) return;
           
-          dashOffset = (dashOffset + 0.15) % 7;
-          const dashArraySequence = [
-            [0, 4, 3],
-            [0.5, 4, 2.5],
-            [1, 4, 2],
-            [1.5, 4, 1.5],
-            [2, 4, 1],
-            [2.5, 4, 0.5],
-            [3, 4, 0],
-            [0, 0.5, 3, 3.5],
-            [0, 1, 3, 3],
-            [0, 1.5, 3, 2.5],
-            [0, 2, 3, 2],
-            [0, 2.5, 3, 1.5],
-            [0, 3, 3, 1],
-            [0, 3.5, 3, 0.5]
-          ];
+          const feature = e.features[0];
+          const props = feature.properties;
           
-          const step = Math.floor(dashOffset * 2) % dashArraySequence.length;
-          
-          try {
-            mapRef.current.setPaintProperty('bus-shapes-layer', 'line-dasharray', dashArraySequence[step]);
-          } catch (e) {
-            // Ignore if layer doesn't exist
-          }
-          
-          requestAnimationFrame(animateDashArray);
-        };
-        
-        animateDashArray();
+          new maplibregl.Popup({ closeButton: true, closeOnClick: true })
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div style="padding: 8px; min-width: 150px;">
+                <div style="font-weight: bold; font-size: 16px; color: ${props.color || '#3b82f6'};">
+                  ${props.routeName || 'Γραμμή'}
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                  ${props.routeLongName || ''}
+                </div>
+              </div>
+            `)
+            .addTo(mapRef.current);
+        });
+
+        // Change cursor on hover
+        mapRef.current.on('mouseenter', 'bus-shapes-layer', () => {
+          if (mapRef.current) mapRef.current.getCanvas().style.cursor = 'pointer';
+        });
+        mapRef.current.on('mouseleave', 'bus-shapes-layer', () => {
+          if (mapRef.current) mapRef.current.getCanvas().style.cursor = '';
+        });
 
         // Add route planning layers
         mapRef.current!.addSource('route-line', {
@@ -1132,17 +1130,21 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       const coordinates = points.map(p => [p.lon, p.lat]);
       
       if (coordinates.length > 1) {
-        // Get route color
+        // Get route info
         const routeId = shapeToRoute.get(shapeId);
         const routeInfo = routeId ? routeNamesMap?.get(routeId) : null;
         const color = routeInfo?.route_color ? `#${routeInfo.route_color}` : '#3b82f6';
+        const routeName = routeInfo?.route_short_name || routeId || '';
+        const routeLongName = routeInfo?.route_long_name || '';
         
         features.push({
           type: 'Feature',
           properties: { 
             shapeId,
             routeId,
-            color
+            color,
+            routeName,
+            routeLongName
           },
           geometry: {
             type: 'LineString',
