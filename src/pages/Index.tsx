@@ -7,7 +7,7 @@ import { VehicleMap } from "@/components/VehicleMap";
 import { TripsTable } from "@/components/TripsTable";
 import { StopsView } from "@/components/StopsView";
 import { AlertsList } from "@/components/AlertsList";
-import { useVehicles, useTrips, useAlerts, useStaticRoutes, useStaticStops, useStaticShapes } from "@/hooks/useGtfsData";
+import { useVehicles, useTrips, useAlerts, useStaticRoutes, useStaticStops, useStaticShapes, useTripMappings } from "@/hooks/useGtfsData";
 import type { RouteInfo } from "@/types/gtfs";
 
 const Index = () => {
@@ -24,6 +24,7 @@ const Index = () => {
   const staticRoutesQuery = useStaticRoutes(selectedOperator);
   const staticStopsQuery = useStaticStops(selectedOperator);
   const staticShapesQuery = useStaticShapes(selectedOperator);
+  const tripMappingsQuery = useTripMappings(selectedOperator);
 
   // Create a map of route_id -> RouteInfo for quick lookup
   const routeNamesMap = useMemo(() => {
@@ -160,8 +161,10 @@ const Index = () => {
                 trips={filteredTrips}
                 stops={staticStopsQuery.data?.data || []}
                 shapes={staticShapesQuery.data?.data || []}
+                tripMappings={tripMappingsQuery.data?.data || []}
                 routeNamesMap={routeNamesMap}
                 isLoading={vehiclesQuery.isLoading}
+                selectedRoute={selectedRoute}
               />
             </TabsContent>
 
