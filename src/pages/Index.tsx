@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Map, Route, MapPin, Bell } from "lucide-react";
+import { Map as MapIcon, Route, MapPin, Bell } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Header } from "@/components/Header";
 import { ErrorBanner } from "@/components/ErrorBanner";
@@ -7,7 +7,8 @@ import { VehicleMap } from "@/components/VehicleMap";
 import { TripsTable } from "@/components/TripsTable";
 import { StopsView } from "@/components/StopsView";
 import { AlertsList } from "@/components/AlertsList";
-import { useVehicles, useTrips, useAlerts } from "@/hooks/useGtfsData";
+import { useVehicles, useTrips, useAlerts, useStaticRoutes } from "@/hooks/useGtfsData";
+import type { RouteInfo } from "@/types/gtfs";
 
 const Index = () => {
   const [isDark, setIsDark] = useState(true);
@@ -19,6 +20,16 @@ const Index = () => {
   const vehiclesQuery = useVehicles(refreshInterval, selectedOperator);
   const tripsQuery = useTrips(refreshInterval, selectedOperator);
   const alertsQuery = useAlerts(refreshInterval, selectedOperator);
+  const staticRoutesQuery = useStaticRoutes(selectedOperator);
+
+  // Create a map of route_id -> RouteInfo for quick lookup
+  const routeNamesMap = useMemo(() => {
+    const routeMap = new Map<string, RouteInfo>();
+    staticRoutesQuery.data?.data?.forEach(route => {
+      routeMap.set(route.route_id, route);
+    });
+    return routeMap;
+  }, [staticRoutesQuery.data]);
 
   // Extract unique routes from data
   const availableRoutes = useMemo(() => {
@@ -86,6 +97,8 @@ const Index = () => {
         selectedRoute={selectedRoute}
         onRouteChange={setSelectedRoute}
         availableRoutes={availableRoutes}
+        routeNamesMap={routeNamesMap}
+        isRoutesLoading={staticRoutesQuery.isLoading}
       />
 
       {hasError && (
@@ -96,7 +109,7 @@ const Index = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
           <TabsList className="grid w-full grid-cols-4 mb-4">
             <TabsTrigger value="map" className="flex items-center gap-2">
-              <Map className="h-4 w-4" />
+              <MapIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Χάρτης</span>
             </TabsTrigger>
             <TabsTrigger value="trips" className="flex items-center gap-2">

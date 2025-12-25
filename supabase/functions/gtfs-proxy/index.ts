@@ -701,6 +701,197 @@ function extractAlerts(feed: GtfsRealtimeFeed) {
     }));
 }
 
+// Static GTFS data URLs by operator
+const GTFS_STATIC_URLS: Record<string, string> = {
+  '2': 'https://www.motionbuscard.org.cy/opendata/downloadfile?file=GTFS%5C2_google_transit.zip&rel=True', // OSYPA
+  '4': 'https://www.motionbuscard.org.cy/opendata/downloadfile?file=GTFS%5C4_google_transit.zip&rel=True', // OSEA
+  '5': 'https://www.motionbuscard.org.cy/opendata/downloadfile?file=GTFS%5C5_google_transit.zip&rel=True', // Intercity
+  '6': 'https://www.motionbuscard.org.cy/opendata/downloadfile?file=GTFS%5C6_google_transit.zip&rel=True', // EMEL
+  '9': 'https://www.motionbuscard.org.cy/opendata/downloadfile?file=GTFS%5C9_google_transit.zip&rel=True', // NPT
+  '10': 'https://www.motionbuscard.org.cy/opendata/downloadfile?file=GTFS%5C10_google_transit.zip&rel=True', // LPT
+  '11': 'https://www.motionbuscard.org.cy/opendata/downloadfile?file=GTFS%5C11_google_transit.zip&rel=True', // PAME EXPRESS
+};
+
+// Simple in-memory cache for routes
+const routesCache: Map<string, { data: RouteInfo[]; timestamp: number }> = new Map();
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+interface RouteInfo {
+  route_id: string;
+  route_short_name: string;
+  route_long_name: string;
+  route_type?: number;
+  route_color?: string;
+  route_text_color?: string;
+}
+
+async function unzipAndParseRoutes(zipData: Uint8Array): Promise<RouteInfo[]> {
+  // Parse ZIP file manually (simplified approach for GTFS files)
+  // GTFS ZIP files contain routes.txt which is a CSV file
+  
+  // Find the routes.txt file in the ZIP
+  // ZIP file format: https://en.wikipedia.org/wiki/ZIP_(file_format)
+  
+  let offset = 0;
+  const routes: RouteInfo[] = [];
+  
+  while (offset < zipData.length - 4) {
+    // Look for local file header signature (0x04034b50)
+    if (zipData[offset] === 0x50 && zipData[offset + 1] === 0x4b && 
+        zipData[offset + 2] === 0x03 && zipData[offset + 3] === 0x04) {
+      
+      const view = new DataView(zipData.buffer, zipData.byteOffset + offset);
+      const compressionMethod = view.getUint16(8, true);
+      const compressedSize = view.getUint32(18, true);
+      const uncompressedSize = view.getUint32(22, true);
+      const fileNameLength = view.getUint16(26, true);
+      const extraFieldLength = view.getUint16(28, true);
+      
+      const fileNameStart = offset + 30;
+      const fileName = new TextDecoder().decode(zipData.slice(fileNameStart, fileNameStart + fileNameLength));
+      
+      const dataStart = fileNameStart + fileNameLength + extraFieldLength;
+      
+      if (fileName === 'routes.txt') {
+        let fileContent: string;
+        
+        if (compressionMethod === 0) {
+          // Stored (no compression)
+          fileContent = new TextDecoder().decode(zipData.slice(dataStart, dataStart + uncompressedSize));
+        } else if (compressionMethod === 8) {
+          // Deflate - use DecompressionStream
+          try {
+            const compressedData = zipData.slice(dataStart, dataStart + compressedSize);
+            const ds = new DecompressionStream('deflate-raw');
+            const writer = ds.writable.getWriter();
+            const reader = ds.readable.getReader();
+            
+            writer.write(compressedData);
+            writer.close();
+            
+            const chunks: Uint8Array[] = [];
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+            }
+            
+            const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+            const decompressed = new Uint8Array(totalLength);
+            let position = 0;
+            for (const chunk of chunks) {
+              decompressed.set(chunk, position);
+              position += chunk.length;
+            }
+            
+            fileContent = new TextDecoder().decode(decompressed);
+          } catch (e) {
+            console.error('Failed to decompress routes.txt:', e);
+            break;
+          }
+        } else {
+          console.log(`Unsupported compression method: ${compressionMethod}`);
+          break;
+        }
+        
+        // Parse CSV
+        const lines = fileContent.split('\n');
+        if (lines.length > 0) {
+          const header = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+          const routeIdIdx = header.indexOf('route_id');
+          const shortNameIdx = header.indexOf('route_short_name');
+          const longNameIdx = header.indexOf('route_long_name');
+          const typeIdx = header.indexOf('route_type');
+          const colorIdx = header.indexOf('route_color');
+          const textColorIdx = header.indexOf('route_text_color');
+          
+          for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            // Parse CSV line (handle quoted values)
+            const values: string[] = [];
+            let current = '';
+            let inQuotes = false;
+            for (const char of line) {
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            values.push(current.trim());
+            
+            if (values.length > routeIdIdx) {
+              routes.push({
+                route_id: values[routeIdIdx] || '',
+                route_short_name: shortNameIdx >= 0 ? values[shortNameIdx] || '' : '',
+                route_long_name: longNameIdx >= 0 ? values[longNameIdx] || '' : '',
+                route_type: typeIdx >= 0 && values[typeIdx] ? parseInt(values[typeIdx]) : undefined,
+                route_color: colorIdx >= 0 ? values[colorIdx] || undefined : undefined,
+                route_text_color: textColorIdx >= 0 ? values[textColorIdx] || undefined : undefined,
+              });
+            }
+          }
+        }
+        break;
+      }
+      
+      offset = dataStart + compressedSize;
+    } else {
+      offset++;
+    }
+  }
+  
+  return routes;
+}
+
+async function fetchStaticRoutes(operatorId?: string): Promise<RouteInfo[]> {
+  const operators = operatorId && operatorId !== 'all' ? [operatorId] : Object.keys(GTFS_STATIC_URLS);
+  const allRoutes: RouteInfo[] = [];
+  
+  for (const opId of operators) {
+    const cacheKey = `routes_${opId}`;
+    const cached = routesCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      allRoutes.push(...cached.data);
+      continue;
+    }
+    
+    const url = GTFS_STATIC_URLS[opId];
+    if (!url) continue;
+    
+    try {
+      console.log(`Fetching static GTFS for operator ${opId} from ${url}`);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error(`Failed to fetch GTFS for operator ${opId}: ${response.status}`);
+        continue;
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const zipData = new Uint8Array(arrayBuffer);
+      
+      console.log(`Downloaded ${zipData.length} bytes for operator ${opId}`);
+      
+      const routes = await unzipAndParseRoutes(zipData);
+      console.log(`Parsed ${routes.length} routes for operator ${opId}`);
+      
+      routesCache.set(cacheKey, { data: routes, timestamp: Date.now() });
+      allRoutes.push(...routes);
+    } catch (error) {
+      console.error(`Error fetching static GTFS for operator ${opId}:`, error);
+    }
+  }
+  
+  return allRoutes;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -714,6 +905,24 @@ serve(async (req) => {
   console.log(`Request path: ${path}, operator: ${operatorId || 'all'}`);
 
   try {
+    // Handle static routes endpoint separately
+    if (path === '/routes') {
+      const routes = await fetchStaticRoutes(operatorId);
+      return new Response(
+        JSON.stringify({
+          data: routes,
+          timestamp: Date.now(),
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=3600',
+          } 
+        }
+      );
+    }
+
     const feed = await fetchGtfsData(operatorId);
     let data: unknown;
 
@@ -733,7 +942,7 @@ serve(async (req) => {
         break;
       default:
         return new Response(
-          JSON.stringify({ error: 'Not found', availableEndpoints: ['/feed', '/vehicles', '/trips', '/alerts'] }),
+          JSON.stringify({ error: 'Not found', availableEndpoints: ['/feed', '/vehicles', '/trips', '/alerts', '/routes'] }),
           { 
             status: 404, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
