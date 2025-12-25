@@ -47,13 +47,16 @@ const createVehicleIcon = (bearing?: number, isFollowed?: boolean, routeColor?: 
   });
 };
 
-const createStopIcon = () => {
+const createStopIcon = (hasVehicleStopped?: boolean) => {
+  const bgColor = hasVehicleStopped ? '#22c55e' : '#f97316'; // green-500 or orange-500
   return L.divIcon({
     className: 'stop-marker',
     html: `
-      <div class="w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center shadow-md border-2 border-white">
+      <div class="w-5 h-5 rounded-full flex items-center justify-center shadow-md border-2 border-white ${hasVehicleStopped ? 'animate-pulse' : ''}" style="background: ${bgColor}">
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/>
+          ${hasVehicleStopped 
+            ? '<rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="7" cy="18" r="1.5" fill="white"/><circle cx="17" cy="18" r="1.5" fill="white"/>' 
+            : '<circle cx="12" cy="12" r="3"/>'}
         </svg>
       </div>
     `,
@@ -281,6 +284,19 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     }
   }, [vehicles, followedVehicleId, routeNamesMap, tripMap, stopMap]);
 
+  // Get stops with vehicles currently stopped
+  const stopsWithVehicles = useMemo(() => {
+    const stoppedAtStops = new Set<string>();
+    vehicles.forEach(v => {
+      // STOPPED_AT status is typically "1" or "STOPPED_AT" in GTFS-RT
+      const status = String(v.currentStatus);
+      if (v.stopId && (status === 'STOPPED_AT' || status === '1')) {
+        stoppedAtStops.add(v.stopId);
+      }
+    });
+    return stoppedAtStops;
+  }, [vehicles]);
+
   // Update stop markers when stops change or visibility toggles
   useEffect(() => {
     if (!stopMarkersRef.current || !mapRef.current) return;
@@ -294,20 +310,25 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     );
 
     validStops.forEach((stop) => {
+      const hasVehicleStopped = stopsWithVehicles.has(stop.stop_id);
       const marker = L.marker([stop.stop_lat!, stop.stop_lon!], {
-        icon: createStopIcon(),
+        icon: createStopIcon(hasVehicleStopped),
       });
+
+      const statusColor = hasVehicleStopped ? '#22c55e' : '#f97316';
+      const statusText = hasVehicleStopped ? '<div class="text-green-500 font-medium mt-1">🚌 Λεωφορείο στη στάση</div>' : '';
 
       marker.bindPopup(`
         <div class="p-3 min-w-[180px]">
           <div class="font-semibold text-base mb-2 flex items-center gap-2">
-            <span class="inline-block w-2 h-2 bg-orange-500 rounded-full"></span>
+            <span class="inline-block w-2 h-2 rounded-full" style="background: ${statusColor}"></span>
             ${stop.stop_name || 'Στάση'}
           </div>
           <div class="space-y-1.5 text-sm">
             <div class="flex justify-between"><span class="text-muted-foreground">ID:</span><span class="font-mono">${stop.stop_id}</span></div>
             ${stop.stop_code ? `<div class="flex justify-between"><span class="text-muted-foreground">Κωδικός:</span><span class="font-mono">${stop.stop_code}</span></div>` : ''}
           </div>
+          ${statusText}
         </div>
       `, {
         className: 'stop-popup',
