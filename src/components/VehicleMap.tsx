@@ -509,11 +509,14 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     const source = map.getSource('bus-shapes') as maplibregl.GeoJSONSource;
     if (!source) return;
 
-    // If no route selected or "all" selected, clear shapes
+    // If no route selected or "all" selected, clear shapes and hide stops
     if (!selectedRoute || selectedRoute === 'all') {
       source.setData({ type: 'FeatureCollection', features: [] });
       return;
     }
+
+    // Enable stops display when a route is selected
+    setShowStops(true);
 
     // Find shape_ids for the selected route using tripMappings
     const routeShapeIds = new Set<string>();
@@ -544,14 +547,22 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     const routeInfo = routeNamesMap?.get(selectedRoute);
     const routeColor = routeInfo?.route_color ? `#${routeInfo.route_color}` : '#3b82f6';
 
-    // Create GeoJSON features
+    // Create GeoJSON features and calculate bounds
     const features: GeoJSON.Feature[] = [];
+    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    
     shapePointsMap.forEach((points, shapeId) => {
       // Sort by sequence
       points.sort((a, b) => a.shape_pt_sequence - b.shape_pt_sequence);
       
-      // Create line coordinates
-      const coordinates = points.map(p => [p.shape_pt_lon, p.shape_pt_lat]);
+      // Create line coordinates and update bounds
+      const coordinates = points.map(p => {
+        minLng = Math.min(minLng, p.shape_pt_lon);
+        maxLng = Math.max(maxLng, p.shape_pt_lon);
+        minLat = Math.min(minLat, p.shape_pt_lat);
+        maxLat = Math.max(maxLat, p.shape_pt_lat);
+        return [p.shape_pt_lon, p.shape_pt_lat];
+      });
       
       if (coordinates.length >= 2) {
         features.push({
@@ -569,7 +580,32 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     });
 
     source.setData({ type: 'FeatureCollection', features });
-  }, [selectedRoute, shapes, tripMappings, routeNamesMap, mapLoaded]);
+
+    // Find live vehicle on this route
+    const liveVehicle = vehicles.find(v => 
+      v.routeId === selectedRoute && 
+      v.latitude !== undefined && 
+      v.longitude !== undefined
+    );
+
+    // Zoom to fit the route or center on live vehicle
+    if (liveVehicle && liveVehicle.latitude && liveVehicle.longitude) {
+      // If there's a live bus, center on it at street level and follow it
+      map.flyTo({
+        center: [liveVehicle.longitude, liveVehicle.latitude],
+        zoom: 15,
+        duration: 1000
+      });
+      // Auto-follow the live vehicle
+      setFollowedVehicleId(liveVehicle.vehicleId || liveVehicle.id);
+    } else if (minLng !== Infinity && features.length > 0) {
+      // Otherwise fit to route bounds
+      map.fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]],
+        { padding: 50, duration: 1000, maxZoom: 14 }
+      );
+    }
+  }, [selectedRoute, shapes, tripMappings, routeNamesMap, mapLoaded, vehicles]);
 
   // Get stops with vehicles currently stopped
   const stopsWithVehicles = useMemo(() => {
