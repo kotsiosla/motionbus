@@ -297,6 +297,57 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     return map;
   }, [stops]);
 
+  // Calculate the number of stops for the selected route (for the toggle display)
+  const routeStopsCount = useMemo(() => {
+    if (!selectedRoute || selectedRoute === 'all') {
+      return stops.filter(s => s.stop_lat !== undefined && s.stop_lon !== undefined).length;
+    }
+    
+    const routeStopIds = new Set<string>();
+    
+    // First try to get stops from trips (realtime data)
+    trips.forEach(trip => {
+      if (trip.routeId === selectedRoute && trip.stopTimeUpdates) {
+        trip.stopTimeUpdates.forEach(stu => {
+          if (stu.stopId) {
+            routeStopIds.add(stu.stopId);
+          }
+        });
+      }
+    });
+    
+    // If no stops from trips, find stops near the route shape
+    if (routeStopIds.size === 0 && shapes.length > 0 && tripMappings.length > 0) {
+      const routeShapeIds = new Set<string>();
+      tripMappings.forEach(mapping => {
+        if (mapping.route_id === selectedRoute) {
+          routeShapeIds.add(mapping.shape_id);
+        }
+      });
+      
+      const routeShapePoints = shapes.filter(p => routeShapeIds.has(p.shape_id));
+      
+      if (routeShapePoints.length > 0) {
+        stops.forEach(stop => {
+          if (stop.stop_lat === undefined || stop.stop_lon === undefined) return;
+          
+          for (const point of routeShapePoints) {
+            const distance = Math.sqrt(
+              Math.pow((stop.stop_lat - point.shape_pt_lat) * 111000, 2) +
+              Math.pow((stop.stop_lon - point.shape_pt_lon) * 111000 * Math.cos(stop.stop_lat * Math.PI / 180), 2)
+            );
+            if (distance < 100) {
+              routeStopIds.add(stop.stop_id);
+              break;
+            }
+          }
+        });
+      }
+    }
+    
+    return routeStopIds.size > 0 ? routeStopIds.size : stops.filter(s => s.stop_lat !== undefined && s.stop_lon !== undefined).length;
+  }, [selectedRoute, trips, stops, shapes, tripMappings]);
+
   // Get next stop info for a vehicle
   const getNextStopInfo = useCallback((vehicle: Vehicle) => {
     if (!vehicle.tripId) return null;
@@ -1464,7 +1515,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
         />
         <Label htmlFor="show-stops" className="text-xs cursor-pointer flex items-center gap-1">
           <MapPin className="h-3 w-3 text-orange-500" />
-          Στάσεις ({stops.length})
+          Στάσεις ({routeStopsCount})
         </Label>
       </div>
 
