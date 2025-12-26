@@ -18,6 +18,7 @@ interface SchedulePanelProps {
   trips: Trip[];
   vehicles: Vehicle[];
   onClose: () => void;
+  onFollowVehicle?: (vehicleId: string) => void;
 }
 
 const STORAGE_KEY = 'schedule-panel-state';
@@ -52,6 +53,7 @@ export function SchedulePanel({
   trips,
   vehicles,
   onClose,
+  onFollowVehicle,
 }: SchedulePanelProps) {
   const [activeTab, setActiveTab] = useState<"live" | "schedule">("live");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -363,11 +365,21 @@ export function SchedulePanel({
                     liveTrips.map((trip) => {
                       const vehicle = liveVehicles.find(v => v.tripId === trip.tripId);
                       const firstStop = trip.stopTimeUpdates?.[0];
+                      const vehicleId = vehicle?.vehicleId || vehicle?.id;
+                      const canFollow = vehicle && vehicleId && vehicle.latitude && vehicle.longitude;
                       
                       return (
                         <div
                           key={trip.id}
-                          className="p-2 rounded-lg bg-green-500/10 border border-green-500/30"
+                          className={cn(
+                            "p-2 rounded-lg bg-green-500/10 border border-green-500/30 transition-all",
+                            canFollow && "cursor-pointer hover:bg-green-500/20 hover:border-green-500/50"
+                          )}
+                          onClick={() => {
+                            if (canFollow && onFollowVehicle) {
+                              onFollowVehicle(vehicleId);
+                            }
+                          }}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -378,11 +390,18 @@ export function SchedulePanel({
                                 {trip.startTime || 'Ενεργό'}
                               </span>
                             </div>
-                            {vehicle?.label && (
-                              <span className="text-[10px] text-muted-foreground">
-                                {vehicle.label}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {vehicle?.label && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {vehicle.label}
+                                </span>
+                              )}
+                              {canFollow && (
+                                <span className="text-[9px] text-green-600 font-medium">
+                                  → Παρακολούθηση
+                                </span>
+                              )}
+                            </div>
                           </div>
                           {firstStop && (
                             <div className="mt-1.5 text-[10px] text-muted-foreground flex items-center gap-1">

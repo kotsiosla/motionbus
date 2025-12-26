@@ -2092,6 +2092,19 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           trips={trips}
           vehicles={vehicles}
           onClose={() => setShowSchedulePanel(false)}
+          onFollowVehicle={(vehicleId) => {
+            setFollowedVehicleId(vehicleId);
+            // Zoom to street level when following from schedule panel
+            const vehicle = vehicles.find(v => (v.vehicleId || v.id) === vehicleId);
+            if (vehicle?.latitude && vehicle?.longitude && mapRef.current) {
+              mapRef.current.flyTo({
+                center: [vehicle.longitude, vehicle.latitude],
+                zoom: 18,
+                pitch: 60,
+                duration: 1000
+              });
+            }
+          }}
         />
       )}
 
