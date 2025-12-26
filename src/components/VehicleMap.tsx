@@ -645,10 +645,10 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           'satellite': {
             type: 'raster',
             tiles: [
-              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+              'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
             ],
             tileSize: 256,
-            attribution: 'Tiles © Esri'
+            attribution: 'Map data © Google'
           }
         },
         layers: [
