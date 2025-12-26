@@ -804,9 +804,28 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
 
     if (!showStops) return;
 
-    const validStops = stops.filter(
-      (s) => s.stop_lat !== undefined && s.stop_lon !== undefined
-    );
+    // Get stop IDs for the selected route from trips
+    const routeStopIds = new Set<string>();
+    if (selectedRoute && selectedRoute !== 'all') {
+      trips.forEach(trip => {
+        if (trip.routeId === selectedRoute && trip.stopTimeUpdates) {
+          trip.stopTimeUpdates.forEach(stu => {
+            if (stu.stopId) {
+              routeStopIds.add(stu.stopId);
+            }
+          });
+        }
+      });
+    }
+
+    // Filter stops: if a route is selected, show only its stops; otherwise show all
+    const validStops = stops.filter((s) => {
+      if (s.stop_lat === undefined || s.stop_lon === undefined) return false;
+      if (selectedRoute && selectedRoute !== 'all' && routeStopIds.size > 0) {
+        return routeStopIds.has(s.stop_id);
+      }
+      return true;
+    });
 
     validStops.forEach((stop) => {
       const hasVehicleStopped = stopsWithVehicles.has(stop.stop_id);
@@ -876,7 +895,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
 
       stopMarkersRef.current.set(stop.stop_id, marker);
     });
-  }, [stops, showStops, stopsWithVehicles, getArrivalsForStop, favoriteStops]);
+  }, [stops, showStops, stopsWithVehicles, getArrivalsForStop, favoriteStops, selectedRoute, trips]);
 
   // Handle user location
   const locateUser = () => {
