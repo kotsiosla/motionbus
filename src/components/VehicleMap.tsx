@@ -370,6 +370,8 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       pitch: 45, // Start with some pitch to show 3D effect
       bearing: 0,
       maxPitch: 70,
+      maxBounds: [[31.8, 34.4], [35.0, 35.8]], // Cyprus boundaries (SW, NE)
+      minZoom: 8,
     });
 
     // Add navigation controls
