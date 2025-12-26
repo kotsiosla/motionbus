@@ -367,7 +367,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
         ]
       },
       center: [33.0, 35.1], // Center of Cyprus
-      zoom: 5, // Zoomed out view
+      zoom: 6, // Zoomed out view
       pitch: 0, // Flat/vertical view
       bearing: 0,
       maxPitch: 70,
@@ -1256,7 +1256,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
         onClick={() => {
           mapRef.current?.flyTo({
             center: [33.0, 35.1],
-            zoom: 5,
+            zoom: 6,
             pitch: 0,
             bearing: 0,
             duration: 1000
