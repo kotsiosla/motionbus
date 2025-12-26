@@ -1,5 +1,5 @@
-import { X, MapPin, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Bus } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { X, MapPin, Clock, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Bus, GripHorizontal } from "lucide-react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import type { Trip, StaticStop, RouteInfo, ShapePoint, TripShapeMapping, Vehicle } from "@/types/gtfs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,9 @@ interface RouteStopsPanelProps {
 }
 
 const STOPS_PER_PAGE = 10;
+const MIN_WIDTH = 240;
+const MAX_WIDTH = 450;
+const MIN_HEIGHT = 200;
 
 const formatETA = (arrivalTime?: number) => {
   if (!arrivalTime) return null;
@@ -52,6 +55,18 @@ export function RouteStopsPanel({
 }: RouteStopsPanelProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  
+  // Draggable state
+  const [position, setPosition] = useState({ x: 16, y: 80 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  
+  // Resizable state
+  const [size, setSize] = useState({ width: 288, height: 400 });
+  const [isResizing, setIsResizing] = useState<string | null>(null);
+  const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+  
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Get vehicles on this route
   const routeVehicles = useMemo(() => {
@@ -60,16 +75,13 @@ export function RouteStopsPanel({
 
   // Get ordered stops for the selected route
   const orderedStops = useMemo(() => {
-    // First, try to get stops from trips with realtime data
     const routeTrips = trips.filter(t => t.routeId === selectedRoute && t.stopTimeUpdates?.length > 0);
     
     if (routeTrips.length > 0) {
-      // Use the trip with the most stop updates
       const bestTrip = routeTrips.reduce((a, b) => 
         (a.stopTimeUpdates?.length || 0) > (b.stopTimeUpdates?.length || 0) ? a : b
       );
       
-      // Get stops in order from the trip
       const stopSequence = bestTrip.stopTimeUpdates
         .sort((a, b) => (a.stopSequence || 0) - (b.stopSequence || 0))
         .map(stu => {
@@ -90,7 +102,6 @@ export function RouteStopsPanel({
       return stopSequence;
     }
     
-    // Fallback: try to get stops from shape points
     if (shapes.length > 0 && tripMappings.length > 0) {
       const routeShapeIds = new Set<string>();
       tripMappings.forEach(mapping => {
@@ -174,21 +185,17 @@ export function RouteStopsPanel({
     return positions;
   }, [routeVehicles]);
 
-  // Calculate total pages
   const totalPages = Math.ceil(orderedStops.length / STOPS_PER_PAGE);
   
-  // Get stops for current page
   const currentStops = useMemo(() => {
     const start = currentPage * STOPS_PER_PAGE;
     return orderedStops.slice(start, start + STOPS_PER_PAGE);
   }, [orderedStops, currentPage]);
 
-  // Reset page when route changes
   useEffect(() => {
     setCurrentPage(0);
   }, [selectedRoute]);
 
-  // Auto-scroll to page with vehicle
   useEffect(() => {
     if (vehiclePositions.size > 0 && orderedStops.length > 0) {
       const firstVehicleStopId = Array.from(vehiclePositions.keys())[0];
@@ -202,6 +209,97 @@ export function RouteStopsPanel({
     }
   }, [vehiclePositions, orderedStops]);
 
+  // Drag handlers
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button, .resize-handle')) return;
+    e.preventDefault();
+    setIsDragging(true);
+    setDragOffset({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    });
+  }, [position]);
+
+  const handleDragMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
+    const newX = Math.max(0, Math.min(window.innerWidth - size.width, e.clientX - dragOffset.x));
+    const newY = Math.max(0, Math.min(window.innerHeight - 100, e.clientY - dragOffset.y));
+    setPosition({ x: newX, y: newY });
+  }, [isDragging, dragOffset, size.width]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Resize handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent, direction: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(direction);
+    resizeStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      width: size.width,
+      height: size.height
+    };
+  }, [size]);
+
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+    
+    const deltaX = e.clientX - resizeStartRef.current.x;
+    const deltaY = e.clientY - resizeStartRef.current.y;
+    
+    let newWidth = resizeStartRef.current.width;
+    let newHeight = resizeStartRef.current.height;
+    let newX = position.x;
+    let newY = position.y;
+    
+    if (isResizing.includes('e')) {
+      newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resizeStartRef.current.width + deltaX));
+    }
+    if (isResizing.includes('w')) {
+      const widthDelta = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, resizeStartRef.current.width - deltaX)) - resizeStartRef.current.width;
+      newWidth = resizeStartRef.current.width + widthDelta;
+      newX = position.x - widthDelta;
+    }
+    if (isResizing.includes('s')) {
+      newHeight = Math.max(MIN_HEIGHT, Math.min(window.innerHeight - position.y - 50, resizeStartRef.current.height + deltaY));
+    }
+    
+    setSize({ width: newWidth, height: newHeight });
+    if (isResizing.includes('w')) {
+      setPosition(prev => ({ ...prev, x: newX }));
+    }
+  }, [isResizing, position]);
+
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(null);
+  }, []);
+
+  // Global event listeners
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDragMove);
+      window.addEventListener('mouseup', handleDragEnd);
+      return () => {
+        window.removeEventListener('mousemove', handleDragMove);
+        window.removeEventListener('mouseup', handleDragEnd);
+      };
+    }
+  }, [isDragging, handleDragMove, handleDragEnd]);
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleResizeMove);
+      window.addEventListener('mouseup', handleResizeEnd);
+      return () => {
+        window.removeEventListener('mousemove', handleResizeMove);
+        window.removeEventListener('mouseup', handleResizeEnd);
+      };
+    }
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
+
   const routeColor = routeInfo?.route_color ? `#${routeInfo.route_color}` : '#0ea5e9';
   const routeTextColor = routeInfo?.route_text_color ? `#${routeInfo.route_text_color}` : '#ffffff';
 
@@ -209,20 +307,31 @@ export function RouteStopsPanel({
     return null;
   }
 
-  // Calculate global indices for current page
   const globalStartIndex = currentPage * STOPS_PER_PAGE;
 
   return (
-    <div className={`absolute top-20 left-4 z-[1000] w-72 glass-card rounded-xl overflow-hidden shadow-2xl transition-all duration-300 ${isMinimized ? 'max-h-14' : 'max-h-[calc(100vh-140px)]'}`}>
-      {/* Header */}
+    <div 
+      ref={panelRef}
+      className={`fixed z-[1000] glass-card rounded-xl overflow-hidden shadow-2xl transition-shadow ${isDragging || isResizing ? 'shadow-xl ring-2 ring-primary/50' : ''}`}
+      style={{
+        left: position.x,
+        top: position.y,
+        width: size.width,
+        height: isMinimized ? 'auto' : size.height,
+        cursor: isDragging ? 'grabbing' : 'default',
+        userSelect: isDragging || isResizing ? 'none' : 'auto'
+      }}
+    >
+      {/* Header - Draggable */}
       <div 
-        className="px-4 py-3 flex items-center justify-between cursor-pointer"
+        className="px-3 py-2 flex items-center justify-between cursor-grab active:cursor-grabbing select-none"
         style={{ backgroundColor: routeColor }}
-        onClick={() => setIsMinimized(!isMinimized)}
+        onMouseDown={handleDragStart}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
+          <GripHorizontal className="h-4 w-4 opacity-50 flex-shrink-0" style={{ color: routeTextColor }} />
           <div 
-            className="font-bold text-base px-2 py-0.5 rounded-md flex-shrink-0"
+            className="font-bold text-sm px-2 py-0.5 rounded-md flex-shrink-0"
             style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: routeTextColor }}
           >
             {routeInfo?.route_short_name || selectedRoute}
@@ -245,10 +354,7 @@ export function RouteStopsPanel({
             variant="ghost"
             size="icon"
             className="h-6 w-6 hover:bg-white/20"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMinimized(!isMinimized);
-            }}
+            onClick={() => setIsMinimized(!isMinimized)}
           >
             {isMinimized ? (
               <ChevronDown className="h-4 w-4" style={{ color: routeTextColor }} />
@@ -260,21 +366,18 @@ export function RouteStopsPanel({
             variant="ghost"
             size="icon"
             className="h-6 w-6 hover:bg-white/20"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
+            onClick={onClose}
           >
             <X className="h-4 w-4" style={{ color: routeTextColor }} />
           </Button>
         </div>
       </div>
 
-      {/* Stops list - Metro style */}
+      {/* Stops list */}
       {!isMinimized && (
-        <div className="flex flex-col">
+        <div className="flex flex-col" style={{ height: size.height - 44 }}>
           {/* Stats bar */}
-          <div className="px-4 py-2 bg-muted/50 border-b border-border flex items-center justify-between text-xs">
+          <div className="px-3 py-1.5 bg-muted/50 border-b border-border flex items-center justify-between text-xs flex-shrink-0">
             <div className="flex items-center gap-1 text-muted-foreground">
               <MapPin className="h-3 w-3" />
               {orderedStops.length} στάσεις
@@ -286,7 +389,7 @@ export function RouteStopsPanel({
             )}
           </div>
 
-          <ScrollArea className="max-h-[calc(100vh-280px)]">
+          <ScrollArea className="flex-1">
             <div className="p-3">
               <div className="relative">
                 {/* Metro line */}
@@ -308,7 +411,7 @@ export function RouteStopsPanel({
                     return (
                       <div 
                         key={stop.stopId}
-                        className={`relative flex items-start gap-3 py-2 cursor-pointer hover:bg-muted/50 rounded-lg transition-colors group pl-1 ${vehicleHere ? 'bg-primary/10' : ''}`}
+                        className={`relative flex items-start gap-3 py-1.5 cursor-pointer hover:bg-muted/50 rounded-lg transition-colors group pl-1 ${vehicleHere ? 'bg-primary/10' : ''}`}
                         onClick={() => {
                           if (stop.lat && stop.lon && onStopClick) {
                             onStopClick(stop.stopId, stop.lat, stop.lon);
@@ -348,7 +451,6 @@ export function RouteStopsPanel({
                             {stop.stopName}
                           </div>
                           
-                          {/* Vehicle info */}
                           {vehicleHere && (
                             <div className="flex items-center gap-1 mt-0.5">
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">
@@ -362,7 +464,6 @@ export function RouteStopsPanel({
                             </div>
                           )}
                           
-                          {/* ETA info */}
                           {!vehicleHere && (eta || minutesAway) && (
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <Clock className="h-3 w-3 text-muted-foreground" />
@@ -389,7 +490,6 @@ export function RouteStopsPanel({
                           )}
                         </div>
                         
-                        {/* Terminal indicators */}
                         {isFirst && (
                           <div className="text-[9px] font-bold px-1 py-0.5 rounded bg-green-500/20 text-green-600 dark:text-green-400 flex-shrink-0">
                             ΑΦΕΤ.
@@ -410,43 +510,86 @@ export function RouteStopsPanel({
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="px-3 py-2 border-t border-border flex items-center justify-between bg-muted/30">
+            <div className="px-3 py-1.5 border-t border-border flex items-center justify-between bg-muted/30 flex-shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2"
+                className="h-6 px-2 text-xs"
                 disabled={currentPage === 0}
                 onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
               >
-                <ChevronLeft className="h-4 w-4 mr-1" />
+                <ChevronLeft className="h-3 w-3 mr-0.5" />
                 Προηγ.
               </Button>
               
               <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i === currentPage ? 'bg-primary' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                    }`}
-                    onClick={() => setCurrentPage(i)}
-                  />
-                ))}
+                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                  let pageIndex = i;
+                  if (totalPages > 7) {
+                    if (currentPage < 4) {
+                      pageIndex = i;
+                    } else if (currentPage > totalPages - 4) {
+                      pageIndex = totalPages - 7 + i;
+                    } else {
+                      pageIndex = currentPage - 3 + i;
+                    }
+                  }
+                  return (
+                    <button
+                      key={pageIndex}
+                      className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                        pageIndex === currentPage ? 'bg-primary' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                      }`}
+                      onClick={() => setCurrentPage(pageIndex)}
+                    />
+                  );
+                })}
               </div>
               
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2"
+                className="h-6 px-2 text-xs"
                 disabled={currentPage >= totalPages - 1}
                 onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
               >
                 Επόμ.
-                <ChevronRight className="h-4 w-4 ml-1" />
+                <ChevronRight className="h-3 w-3 ml-0.5" />
               </Button>
             </div>
           )}
         </div>
+      )}
+
+      {/* Resize handles */}
+      {!isMinimized && (
+        <>
+          {/* Right edge */}
+          <div 
+            className="resize-handle absolute top-0 right-0 w-2 h-full cursor-e-resize hover:bg-primary/20 transition-colors"
+            onMouseDown={(e) => handleResizeStart(e, 'e')}
+          />
+          {/* Bottom edge */}
+          <div 
+            className="resize-handle absolute bottom-0 left-0 w-full h-2 cursor-s-resize hover:bg-primary/20 transition-colors"
+            onMouseDown={(e) => handleResizeStart(e, 's')}
+          />
+          {/* Left edge */}
+          <div 
+            className="resize-handle absolute top-0 left-0 w-2 h-full cursor-w-resize hover:bg-primary/20 transition-colors"
+            onMouseDown={(e) => handleResizeStart(e, 'w')}
+          />
+          {/* Bottom-right corner */}
+          <div 
+            className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-se-resize hover:bg-primary/30 transition-colors rounded-tl"
+            onMouseDown={(e) => handleResizeStart(e, 'se')}
+          />
+          {/* Bottom-left corner */}
+          <div 
+            className="resize-handle absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize hover:bg-primary/30 transition-colors rounded-tr"
+            onMouseDown={(e) => handleResizeStart(e, 'sw')}
+          />
+        </>
       )}
     </div>
   );
