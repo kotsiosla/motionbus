@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Star, Heart, Route, Box, Layers, Home, ZoomIn, ZoomOut } from "lucide-react";
+import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Star, Heart, Route, Box, Layers, Home, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -424,6 +424,64 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     
     return { firstStopId: null, lastStopId: null, totalKm: 0 };
   }, [selectedRoute, trips, shapes, tripMappings]);
+
+  // Zoom to fit the entire route
+  const zoomToRoute = useCallback(() => {
+    if (!mapRef.current || !selectedRoute || selectedRoute === 'all') return;
+
+    // Collect all coordinates from the route
+    const coordinates: [number, number][] = [];
+    
+    // Get coordinates from shapes
+    const routeShapeIds = new Set<string>();
+    tripMappings.forEach(mapping => {
+      if (mapping.route_id === selectedRoute) {
+        routeShapeIds.add(mapping.shape_id);
+      }
+    });
+    
+    shapes.forEach(point => {
+      if (routeShapeIds.has(point.shape_id)) {
+        coordinates.push([point.shape_pt_lon, point.shape_pt_lat]);
+      }
+    });
+    
+    // If no shapes, get coordinates from trip stops
+    if (coordinates.length === 0) {
+      const routeTrips = trips.filter(t => t.routeId === selectedRoute && t.stopTimeUpdates?.length > 0);
+      routeTrips.forEach(trip => {
+        trip.stopTimeUpdates?.forEach(stu => {
+          const stop = stopMap.get(stu.stopId || '');
+          if (stop?.stop_lat !== undefined && stop?.stop_lon !== undefined) {
+            coordinates.push([stop.stop_lon, stop.stop_lat]);
+          }
+        });
+      });
+    }
+    
+    if (coordinates.length === 0) return;
+    
+    // Calculate bounds
+    const bounds = coordinates.reduce(
+      (bounds, coord) => {
+        return [
+          [Math.min(bounds[0][0], coord[0]), Math.min(bounds[0][1], coord[1])],
+          [Math.max(bounds[1][0], coord[0]), Math.max(bounds[1][1], coord[1])]
+        ];
+      },
+      [[coordinates[0][0], coordinates[0][1]], [coordinates[0][0], coordinates[0][1]]] as [[number, number], [number, number]]
+    );
+    
+    // Fit the map to the bounds with padding
+    mapRef.current.fitBounds(
+      [bounds[0][0], bounds[0][1], bounds[1][0], bounds[1][1]] as [number, number, number, number],
+      {
+        padding: { top: 100, bottom: 100, left: 50, right: 50 },
+        duration: 1000,
+        maxZoom: 16
+      }
+    );
+  }, [selectedRoute, shapes, tripMappings, trips, stopMap]);
 
   // Get next stop info for a vehicle
   const getNextStopInfo = useCallback((vehicle: Vehicle) => {
@@ -2070,6 +2128,19 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       >
         <ZoomOut className="h-4 w-4" />
       </Button>
+
+      {/* Zoom to fit route button */}
+      {selectedRoute && selectedRoute !== 'all' && (
+        <Button
+          variant="secondary"
+          size="icon"
+          className="absolute top-[29rem] right-4 z-[1000] glass-card h-9 w-9"
+          onClick={zoomToRoute}
+          title="Εμφάνιση ολόκληρης διαδρομής"
+        >
+          <Maximize2 className="h-4 w-4" />
+        </Button>
+      )}
 
       {userLocation && nearbyStops.length > 0 && showNearbyPanel && (
         <div className="absolute bottom-4 right-4 glass-card rounded-lg p-3 z-[1000] max-w-[300px] max-h-[60vh] overflow-hidden flex flex-col">
