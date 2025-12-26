@@ -394,80 +394,16 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     // Add bus route shapes and route planning layers when map loads
     mapRef.current.on('load', () => {
       if (mapRef.current && !mapRef.current.getSource('bus-shapes')) {
-        // Add bus route shapes layer
+        // Add bus route shapes source (initially empty)
         mapRef.current.addSource('bus-shapes', {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] }
         });
 
-        // Bus route shape layer (solid line with route color)
-        mapRef.current.addLayer({
-          id: 'bus-shapes-layer',
-          type: 'line',
-          source: 'bus-shapes',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': ['get', 'color'],
-            'line-width': 5,
-            'line-opacity': 0.8
-          }
-        });
-
-        // Route label layer
-        mapRef.current.addLayer({
-          id: 'bus-shapes-label',
-          type: 'symbol',
-          source: 'bus-shapes',
-          layout: {
-            'symbol-placement': 'line',
-            'text-field': ['get', 'routeName'],
-            'text-size': 12,
-            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-            'text-offset': [0, -1],
-            'text-anchor': 'center',
-            'symbol-spacing': 200
-          },
-          paint: {
-            'text-color': '#ffffff',
-            'text-halo-color': ['get', 'color'],
-            'text-halo-width': 2
-          }
-        });
+        // Bus route shape layer - currently disabled to debug line issue
+        // Will be re-enabled when we fix the shapes rendering
 
         shapesSourceRef.current = true;
-
-        // Add click handler for route popup
-        mapRef.current.on('click', 'bus-shapes-layer', (e) => {
-          if (!mapRef.current || !e.features?.[0]) return;
-          
-          const feature = e.features[0];
-          const props = feature.properties;
-          
-          new maplibregl.Popup({ closeButton: true, closeOnClick: true })
-            .setLngLat(e.lngLat)
-            .setHTML(`
-              <div style="padding: 8px; min-width: 150px;">
-                <div style="font-weight: bold; font-size: 16px; color: ${props.color || '#3b82f6'};">
-                  ${props.routeName || 'Γραμμή'}
-                </div>
-                <div style="font-size: 12px; color: #666; margin-top: 4px;">
-                  ${props.routeLongName || ''}
-                </div>
-              </div>
-            `)
-            .addTo(mapRef.current);
-        });
-
-        // Change cursor on hover
-        mapRef.current.on('mouseenter', 'bus-shapes-layer', () => {
-          if (mapRef.current) mapRef.current.getCanvas().style.cursor = 'pointer';
-        });
-        mapRef.current.on('mouseleave', 'bus-shapes-layer', () => {
-          if (mapRef.current) mapRef.current.getCanvas().style.cursor = '';
-        });
 
         // Add route planning layers
         mapRef.current!.addSource('route-line', {
@@ -1010,18 +946,23 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
 
   // Display bus route shapes on map - only when following a vehicle
   useEffect(() => {
-    if (!mapRef.current || !shapesSourceRef.current || !mapLoaded) return;
+    if (!mapRef.current || !mapLoaded) return;
 
     const source = mapRef.current.getSource('bus-shapes') as maplibregl.GeoJSONSource;
     if (!source) return;
 
-    // Clear shapes immediately - will rebuild only if following a vehicle
+    // Always start by clearing any existing shapes
     source.setData({ type: 'FeatureCollection', features: [] });
 
-    // Only show shapes when following a specific vehicle (clicked on it)
-    if (!followedVehicleId || shapes.length === 0 || tripMappings.length === 0) {
-      return;
-    }
+    // Exit early if no vehicle is being followed
+    if (!followedVehicleId) return;
+    
+    // Exit if we don't have the required data
+    if (!shapes || shapes.length === 0 || !tripMappings || tripMappings.length === 0) return;
+
+    // Find the followed vehicle
+    const followedVehicle = vehicles.find(v => v.id === followedVehicleId || v.vehicleId === followedVehicleId);
+    if (!followedVehicle?.routeId) return;
 
     // Create route_id -> shape_ids mapping
     const routeToShapes = new Map<string, Set<string>>();
@@ -1034,18 +975,9 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       shapeToRoute.set(mapping.shape_id, mapping.route_id);
     });
 
-    // Show shapes only for the followed vehicle's route
-    let shapesToShow: Set<string> = new Set();
-    
-    const followedVehicle = vehicles.find(v => v.id === followedVehicleId || v.vehicleId === followedVehicleId);
-    if (followedVehicle?.routeId) {
-      shapesToShow = routeToShapes.get(followedVehicle.routeId) || new Set();
-    }
-
-    if (shapesToShow.size === 0) {
-      source.setData({ type: 'FeatureCollection', features: [] });
-      return;
-    }
+    // Get shapes for the followed vehicle's route only
+    const shapesToShow = routeToShapes.get(followedVehicle.routeId);
+    if (!shapesToShow || shapesToShow.size === 0) return;
 
     // Group shape points by shape_id and sort by sequence
     const shapeGroups = new Map<string, { lat: number; lon: number; seq: number }[]>();
@@ -1064,6 +996,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
 
     // Create GeoJSON features for each shape with route color
     const features: GeoJSON.Feature[] = [];
+    const routeInfo = routeNamesMap?.get(followedVehicle.routeId);
+    const color = routeInfo?.route_color ? `#${routeInfo.route_color}` : '#3b82f6';
+    const routeName = routeInfo?.route_short_name || followedVehicle.routeId || '';
+    const routeLongName = routeInfo?.route_long_name || '';
+
     shapeGroups.forEach((points, shapeId) => {
       // Sort by sequence
       points.sort((a, b) => a.seq - b.seq);
@@ -1072,18 +1009,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       const coordinates = points.map(p => [p.lon, p.lat]);
       
       if (coordinates.length > 1) {
-        // Get route info
-        const routeId = shapeToRoute.get(shapeId);
-        const routeInfo = routeId ? routeNamesMap?.get(routeId) : null;
-        const color = routeInfo?.route_color ? `#${routeInfo.route_color}` : '#3b82f6';
-        const routeName = routeInfo?.route_short_name || routeId || '';
-        const routeLongName = routeInfo?.route_long_name || '';
-        
         features.push({
           type: 'Feature',
           properties: { 
             shapeId,
-            routeId,
+            routeId: followedVehicle.routeId,
             color,
             routeName,
             routeLongName
@@ -1135,11 +1065,15 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     const source = mapRef.current.getSource('route-line') as maplibregl.GeoJSONSource;
     if (!source) return;
 
-    if (routingState.routes.length > 0) {
+    // Always clear first
+    source.setData({ type: 'FeatureCollection', features: [] });
+
+    // Only draw if we have routes from the route planner
+    if (routingState.routes.length > 0 && routingState.origin && routingState.destination) {
       const selectedRoute = routingState.routes[0];
       const features: GeoJSON.Feature[] = [];
 
-      selectedRoute.segments.forEach((segment, idx) => {
+      selectedRoute.segments.forEach((segment) => {
         const color = segment.type === 'walk' 
           ? '#6b7280' 
           : (segment.routeColor ? `#${segment.routeColor}` : '#3b82f6');
@@ -1161,10 +1095,8 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
         type: 'FeatureCollection',
         features
       });
-    } else {
-      source.setData({ type: 'FeatureCollection', features: [] });
     }
-  }, [routingState.routes, mapLoaded]);
+  }, [routingState.routes, routingState.origin, routingState.destination, mapLoaded]);
 
   // Follow the selected vehicle in realtime
   useEffect(() => {
