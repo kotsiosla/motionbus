@@ -1151,6 +1151,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           id="show-stops"
           checked={showStops}
           onCheckedChange={setShowStops}
+          className="data-[state=checked]:bg-orange-500"
         />
         <Label htmlFor="show-stops" className="text-xs cursor-pointer flex items-center gap-1">
           <MapPin className="h-3 w-3 text-orange-500" />
