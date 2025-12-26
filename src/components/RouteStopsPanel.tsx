@@ -12,6 +12,7 @@ interface RouteStopsPanelProps {
   shapes: ShapePoint[];
   tripMappings: TripShapeMapping[];
   vehicles: Vehicle[];
+  totalKm?: number;
   onClose: () => void;
   onStopClick?: (stopId: string, lat: number, lon: number) => void;
   highlightedStopId?: string | null;
@@ -86,6 +87,7 @@ export function RouteStopsPanel({
   shapes,
   tripMappings,
   vehicles,
+  totalKm,
   onClose,
   onStopClick,
   highlightedStopId,
@@ -498,6 +500,15 @@ export function RouteStopsPanel({
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          {totalKm !== undefined && totalKm > 0 && (
+            <div 
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium"
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: routeTextColor }}
+            >
+              <MapPin className="h-3 w-3" />
+              {totalKm} km
+            </div>
+          )}
           {routeVehicles.length > 0 && (
             <div 
               className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium"

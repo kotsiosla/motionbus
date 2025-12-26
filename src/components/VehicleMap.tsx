@@ -1792,6 +1792,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           shapes={shapes}
           tripMappings={tripMappings}
           vehicles={vehicles}
+          totalKm={routeTerminals.totalKm}
           highlightedStopId={highlightedStopId}
           onHighlightStop={(stopId) => {
             // Remove previous highlighted marker
