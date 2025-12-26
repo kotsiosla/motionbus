@@ -10,6 +10,8 @@ import type { Vehicle, StaticStop, Trip, RouteInfo, ShapePoint, TripShapeMapping
 import { useTransitRouting } from "@/hooks/useTransitRouting";
 import { RoutePlanner } from "@/components/RoutePlanner";
 import { RouteStopsPanel } from "@/components/RouteStopsPanel";
+import { SchedulePanel } from "@/components/SchedulePanel";
+
 interface VehicleMapProps {
   vehicles: Vehicle[];
   trips?: Trip[];
@@ -19,6 +21,7 @@ interface VehicleMapProps {
   routeNamesMap?: Map<string, RouteInfo>;
   isLoading: boolean;
   selectedRoute?: string;
+  selectedOperator?: string;
 }
 
 const formatTimestamp = (timestamp?: number) => {
@@ -141,7 +144,7 @@ const createStopElement = (hasVehicleStopped?: boolean, isFavorite?: boolean, st
   return el;
 };
 
-export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], tripMappings = [], routeNamesMap, isLoading, selectedRoute }: VehicleMapProps) {
+export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], tripMappings = [], routeNamesMap, isLoading, selectedRoute, selectedOperator }: VehicleMapProps) {
   const { toast } = useToast();
   const mapRef = useRef<maplibregl.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -184,6 +187,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
   const [is3DMode, setIs3DMode] = useState(false);
   const [selectingMode, setSelectingMode] = useState<'origin' | 'destination' | null>(null);
   const [showRouteStopsPanel, setShowRouteStopsPanel] = useState(true);
+  const [showSchedulePanel, setShowSchedulePanel] = useState(false);
   const [highlightedStopId, setHighlightedStopId] = useState<string | null>(null);
   const highlightedMarkerRef = useRef<maplibregl.Marker | null>(null);
 
@@ -1792,6 +1796,17 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
             <span className="font-medium">{routeTerminals.totalKm} km</span>
           </div>
         )}
+        {selectedRoute && selectedRoute !== 'all' && selectedOperator && selectedOperator !== 'all' && (
+          <Button
+            variant={showSchedulePanel ? "default" : "outline"}
+            size="sm"
+            className="h-7 text-xs gap-1 border-l border-border ml-2"
+            onClick={() => setShowSchedulePanel(!showSchedulePanel)}
+          >
+            <Clock className="h-3 w-3" />
+            Πρόγραμμα
+          </Button>
+        )}
       </div>
 
       {/* Route Stops Panel - Metro style */}
@@ -2107,6 +2122,18 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
             });
             setShowStops(true);
           }}
+        />
+      )}
+
+      {/* Schedule Panel */}
+      {selectedRoute && selectedRoute !== 'all' && showSchedulePanel && selectedOperator && selectedOperator !== 'all' && (
+        <SchedulePanel
+          selectedRoute={selectedRoute}
+          routeInfo={routeNamesMap?.get(selectedRoute)}
+          operatorId={selectedOperator}
+          trips={trips}
+          vehicles={vehicles}
+          onClose={() => setShowSchedulePanel(false)}
         />
       )}
 

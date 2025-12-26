@@ -165,6 +165,7 @@ const Index = () => {
                 routeNamesMap={routeNamesMap}
                 isLoading={vehiclesQuery.isLoading}
                 selectedRoute={selectedRoute}
+                selectedOperator={selectedOperator}
               />
             </TabsContent>
 

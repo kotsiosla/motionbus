@@ -1,1 +1,7 @@
 project_id = "mhlyndipnpwpcydjukig"
+
+[functions.gtfs-proxy]
+verify_jwt = false
+
+[functions.gtfs-schedule]
+verify_jwt = false
