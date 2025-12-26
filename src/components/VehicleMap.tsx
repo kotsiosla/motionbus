@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Star, Heart, Route, Box, Layers } from "lucide-react";
+import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Star, Heart, Route, Box, Layers, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -1246,6 +1246,26 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
         ) : (
           <Box className="h-4 w-4 text-muted-foreground" />
         )}
+      </Button>
+
+      {/* Reset view button */}
+      <Button
+        variant="secondary"
+        size="icon"
+        className="absolute top-[20rem] right-4 z-[1000] glass-card h-9 w-9"
+        onClick={() => {
+          mapRef.current?.flyTo({
+            center: [33.4, 35.1],
+            zoom: 7.8,
+            pitch: 0,
+            bearing: 0,
+            duration: 1000
+          });
+          setIs3DMode(false);
+        }}
+        title="Επαναφορά χάρτη"
+      >
+        <Home className="h-4 w-4" />
       </Button>
 
       {/* Nearby stops panel */}
