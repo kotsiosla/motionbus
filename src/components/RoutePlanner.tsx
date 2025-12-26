@@ -9,9 +9,7 @@ import {
   Bus,
   ArrowRight,
   RotateCcw,
-  Loader2,
-  ChevronDown,
-  ChevronUp
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -109,42 +107,31 @@ function SegmentDisplay({ segment, isLast }: { segment: RouteSegment; isLast: bo
   );
 }
 
-function RouteCard({ route, index }: { route: TransitRoute; index: number }) {
-  const [isExpanded, setIsExpanded] = useState(index === 0);
+function RouteCard({ route }: { route: TransitRoute }) {
   const transitSegments = route.segments.filter(s => s.type === 'transit');
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
-      <button 
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 text-left hover:bg-muted/50 transition-colors"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="text-lg font-bold">{formatDuration(route.totalDuration)}</div>
-            <div className="flex items-center gap-1">
-              {transitSegments.map((seg, i) => (
-                <div key={i} className="flex items-center gap-1">
-                  <span 
-                    className="px-2 py-0.5 rounded text-xs font-bold text-white"
-                    style={{ 
-                      backgroundColor: seg.routeColor ? `#${seg.routeColor}` : 'hsl(var(--primary))',
-                    }}
-                  >
-                    {seg.routeName}
-                  </span>
-                  {i < transitSegments.length - 1 && (
-                    <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                  )}
-                </div>
-              ))}
-            </div>
+      <div className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="text-lg font-bold">{formatDuration(route.totalDuration)}</div>
+          <div className="flex items-center gap-1">
+            {transitSegments.map((seg, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <span 
+                  className="px-2 py-0.5 rounded text-xs font-bold text-white"
+                  style={{ 
+                    backgroundColor: seg.routeColor ? `#${seg.routeColor}` : 'hsl(var(--primary))',
+                  }}
+                >
+                  {seg.routeName}
+                </span>
+                {i < transitSegments.length - 1 && (
+                  <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                )}
+              </div>
+            ))}
           </div>
-          {isExpanded ? (
-            <ChevronUp className="w-5 h-5 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-muted-foreground" />
-          )}
         </div>
         
         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -163,21 +150,19 @@ function RouteCard({ route, index }: { route: TransitRoute; index: number }) {
             </div>
           )}
         </div>
-      </button>
+      </div>
       
-      {isExpanded && (
-        <div className="px-4 pb-4 border-t border-border/50">
-          <div className="mt-3 space-y-1">
-            {route.segments.map((segment, i) => (
-              <SegmentDisplay 
-                key={i} 
-                segment={segment} 
-                isLast={i === route.segments.length - 1}
-              />
-            ))}
-          </div>
+      <div className="px-4 pb-4 border-t border-border/50">
+        <div className="mt-3 space-y-1">
+          {route.segments.map((segment, i) => (
+            <SegmentDisplay 
+              key={i} 
+              segment={segment} 
+              isLast={i === route.segments.length - 1}
+            />
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -412,7 +397,7 @@ export function RoutePlanner({
                 {routes.length} διαδρομ{routes.length === 1 ? 'ή' : 'ές'}
               </div>
               {routes.map((route, index) => (
-                <RouteCard key={route.id} route={route} index={index} />
+                <RouteCard key={route.id} route={route} />
               ))}
             </>
           )}
