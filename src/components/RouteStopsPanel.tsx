@@ -45,6 +45,17 @@ const formatMinutesFromNow = (arrivalTime?: number) => {
   return `${minutes}'`;
 };
 
+// Format countdown as MM:SS
+const formatCountdown = (arrivalTime?: number) => {
+  if (!arrivalTime) return null;
+  const now = Date.now() / 1000;
+  const diff = arrivalTime - now;
+  if (diff <= 0) return 'Τώρα';
+  const minutes = Math.floor(diff / 60);
+  const seconds = Math.floor(diff % 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
 // Load saved state from localStorage
 const loadSavedState = () => {
   try {
@@ -82,6 +93,7 @@ export function RouteStopsPanel({
 }: RouteStopsPanelProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  const [, setCountdownTick] = useState(0); // Force re-render for countdown
   
   // Load initial state from localStorage
   const savedState = useMemo(() => loadSavedState(), []);
@@ -97,6 +109,14 @@ export function RouteStopsPanel({
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0 });
   
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Update countdown every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCountdownTick(prev => prev + 1);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Save state when position or size changes
   useEffect(() => {
@@ -579,9 +599,20 @@ export function RouteStopsPanel({
                     const isFirst = globalIndex === 0;
                     const isLast = globalIndex === orderedStops.length - 1;
                     const eta = formatETA(stop.arrivalTime);
-                    const minutesAway = formatMinutesFromNow(stop.arrivalTime);
+                    const countdown = formatCountdown(stop.arrivalTime);
                     const vehicleHere = vehiclePositions.get(stop.stopId);
                     const isHighlighted = highlightedStopId === stop.stopId;
+                    
+                    // Calculate countdown color based on urgency
+                    const now = Date.now() / 1000;
+                    const secondsUntil = stop.arrivalTime ? stop.arrivalTime - now : 0;
+                    const countdownColorClass = secondsUntil <= 0 
+                      ? 'bg-green-500/20 text-green-500' 
+                      : secondsUntil <= 120 
+                      ? 'bg-red-500/20 text-red-500' 
+                      : secondsUntil <= 300 
+                      ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400' 
+                      : 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400';
                     
                     // Check if any vehicle is currently animating away from or to this stop
                     const isAnimatingAway = Array.from(animatingVehicles.values()).some(
@@ -656,21 +687,15 @@ export function RouteStopsPanel({
                             </div>
                           )}
                           
-                          {!vehicleHere && (eta || minutesAway) && (
+                          {!vehicleHere && countdown && (
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <Clock className="h-3 w-3 text-muted-foreground" />
+                              <span className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${countdownColorClass}`}>
+                                {countdown}
+                              </span>
                               {eta && (
-                                <span className="text-xs font-mono text-primary font-semibold">
-                                  {eta}
-                                </span>
-                              )}
-                              {minutesAway && (
-                                <span className={`text-[10px] px-1 py-0.5 rounded ${
-                                  minutesAway === 'Τώρα' 
-                                    ? 'bg-green-500/20 text-green-500 font-medium' 
-                                    : 'bg-muted text-muted-foreground'
-                                }`}>
-                                  {minutesAway}
+                                <span className="text-[10px] text-muted-foreground">
+                                  ({eta})
                                 </span>
                               )}
                               {stop.arrivalDelay !== undefined && stop.arrivalDelay !== 0 && (
