@@ -160,8 +160,8 @@ const Index = () => {
                 vehicles={filteredVehicles}
                 trips={filteredTrips}
                 stops={staticStopsQuery.data?.data || []}
-                shapes={staticShapesQuery.data?.data || []}
-                tripMappings={tripMappingsQuery.data?.data || []}
+                shapes={[]}
+                tripMappings={[]}
                 routeNamesMap={routeNamesMap}
                 isLoading={vehiclesQuery.isLoading}
                 selectedRoute={selectedRoute}
