@@ -1,4 +1,4 @@
-import { Moon, Sun, RefreshCw } from "lucide-react";
+import { Moon, Sun, RefreshCw, Bus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -98,7 +98,8 @@ export function Header({
                     checked={showLiveOnly}
                     onCheckedChange={onShowLiveOnlyChange}
                   />
-                  <Label htmlFor="live-only" className="text-xs text-muted-foreground cursor-pointer">
+                  <Label htmlFor="live-only" className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1">
+                    <Bus className="h-3 w-3" />
                     Show live Buses only ({liveRoutesCount || 0})
                   </Label>
                 </div>
