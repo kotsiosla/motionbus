@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Star, Heart, Route } from "lucide-react";
+import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Star, Heart, Route, Box, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -143,6 +143,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
   const [showRoutePlanner, setShowRoutePlanner] = useState(false);
   const [showRotationHint, setShowRotationHint] = useState(true);
   const [showStopsControl, setShowStopsControl] = useState(true);
+  const [is3DMode, setIs3DMode] = useState(false);
   const [selectingMode, setSelectingMode] = useState<'origin' | 'destination' | null>(null);
 
   // Initialize transit routing hook
@@ -1229,6 +1230,27 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           <Volume2 className="h-4 w-4 text-blue-500" />
         ) : (
           <VolumeX className="h-4 w-4 text-muted-foreground" />
+        )}
+      </Button>
+
+      {/* 2D/3D toggle */}
+      <Button
+        variant="secondary"
+        size="icon"
+        className={`absolute top-[14.5rem] right-4 z-[1000] glass-card h-9 w-9 ${is3DMode ? 'ring-2 ring-purple-500/50' : ''}`}
+        onClick={() => {
+          setIs3DMode(!is3DMode);
+          mapRef.current?.easeTo({
+            pitch: is3DMode ? 0 : 45,
+            duration: 500
+          });
+        }}
+        title={is3DMode ? 'Προβολή 2D' : 'Προβολή 3D'}
+      >
+        {is3DMode ? (
+          <Layers className="h-4 w-4 text-purple-500" />
+        ) : (
+          <Box className="h-4 w-4 text-muted-foreground" />
         )}
       </Button>
 
