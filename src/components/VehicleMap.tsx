@@ -383,10 +383,10 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     return routeStopIds.size > 0 ? routeStopIds.size : stops.filter(s => s.stop_lat !== undefined && s.stop_lon !== undefined).length;
   }, [selectedRoute, trips, stops, shapes, tripMappings]);
 
-  // Get first and last stop IDs for the selected route + total distance
+  // Get first and last stop IDs for the selected route + total distance + estimated time
   const routeTerminals = useMemo(() => {
     if (!selectedRoute || selectedRoute === 'all') {
-      return { firstStopId: null, lastStopId: null, totalKm: 0 };
+      return { firstStopId: null, lastStopId: null, totalKm: 0, estimatedMinutes: 0 };
     }
     
     // Get ordered stops from trips
@@ -405,6 +405,18 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
         
         const firstStopId = sortedStops[0]?.stopId || null;
         const lastStopId = sortedStops[sortedStops.length - 1]?.stopId || null;
+        
+        // Calculate estimated time from realtime data (first departure to last arrival)
+        let estimatedMinutes = 0;
+        const firstStop = sortedStops[0];
+        const lastStop = sortedStops[sortedStops.length - 1];
+        
+        const firstTime = firstStop?.departureTime || firstStop?.arrivalTime;
+        const lastTime = lastStop?.arrivalTime || lastStop?.departureTime;
+        
+        if (firstTime && lastTime && lastTime > firstTime) {
+          estimatedMinutes = Math.round((lastTime - firstTime) / 60);
+        }
         
         // Calculate distance from shapes
         let totalKm = 0;
@@ -436,11 +448,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           }
         }
         
-        return { firstStopId, lastStopId, totalKm: Math.round(totalKm * 10) / 10 };
+        return { firstStopId, lastStopId, totalKm: Math.round(totalKm * 10) / 10, estimatedMinutes };
       }
     }
     
-    return { firstStopId: null, lastStopId: null, totalKm: 0 };
+    return { firstStopId: null, lastStopId: null, totalKm: 0, estimatedMinutes: 0 };
   }, [selectedRoute, trips, shapes, tripMappings]);
 
   // Zoom to fit the entire route
@@ -1793,6 +1805,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           tripMappings={tripMappings}
           vehicles={vehicles}
           totalKm={routeTerminals.totalKm}
+          estimatedMinutes={routeTerminals.estimatedMinutes}
           highlightedStopId={highlightedStopId}
           onHighlightStop={(stopId) => {
             // Remove previous highlighted marker

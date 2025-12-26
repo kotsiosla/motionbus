@@ -13,6 +13,7 @@ interface RouteStopsPanelProps {
   tripMappings: TripShapeMapping[];
   vehicles: Vehicle[];
   totalKm?: number;
+  estimatedMinutes?: number;
   onClose: () => void;
   onStopClick?: (stopId: string, lat: number, lon: number) => void;
   highlightedStopId?: string | null;
@@ -88,6 +89,7 @@ export function RouteStopsPanel({
   tripMappings,
   vehicles,
   totalKm,
+  estimatedMinutes,
   onClose,
   onStopClick,
   highlightedStopId,
@@ -507,6 +509,15 @@ export function RouteStopsPanel({
             >
               <MapPin className="h-3 w-3" />
               {totalKm} km
+            </div>
+          )}
+          {estimatedMinutes !== undefined && estimatedMinutes > 0 && (
+            <div 
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium"
+              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: routeTextColor }}
+            >
+              <Clock className="h-3 w-3" />
+              {estimatedMinutes}'
             </div>
           )}
           {routeVehicles.length > 0 && (
