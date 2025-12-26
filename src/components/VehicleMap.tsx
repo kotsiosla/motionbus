@@ -2070,38 +2070,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
               }
             }
           }}
-          onClose={() => {
-            setShowRouteStopsPanel(false);
-            // Clear highlighted stop when closing panel
-            if (highlightedMarkerRef.current) {
-              highlightedMarkerRef.current.remove();
-              highlightedMarkerRef.current = null;
-            }
-            // Stop walking animation
-            if (walkingAnimationRef.current) {
-              cancelAnimationFrame(walkingAnimationRef.current);
-              walkingAnimationRef.current = null;
-            }
-            // Remove walking icon marker
-            if (walkingIconMarkerRef.current) {
-              walkingIconMarkerRef.current.remove();
-              walkingIconMarkerRef.current = null;
-            }
-            // Remove walking route
-            if (mapRef.current && walkingRouteRef.current) {
-              if (mapRef.current.getLayer('walking-route-line')) {
-                mapRef.current.removeLayer('walking-route-line');
-              }
-              if (mapRef.current.getLayer('walking-route-dots')) {
-                mapRef.current.removeLayer('walking-route-dots');
-              }
-              if (mapRef.current.getSource('walking-route')) {
-                mapRef.current.removeSource('walking-route');
-              }
-              walkingRouteRef.current = false;
-            }
-            setHighlightedStopId(null);
-          }}
+          onClose={() => {}}
           onStopClick={(stopId, lat, lon) => {
             mapRef.current?.flyTo({
               center: [lon, lat],
