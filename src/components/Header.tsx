@@ -102,8 +102,9 @@ export function Header({
             </div>
 
             <div className="flex flex-col items-end gap-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2" title="Διάστημα ανανέωσης δεδομένων - πόσο συχνά ανακτώνται νέες θέσεις λεωφορείων">
                 <RefreshCw className={`h-4 w-4 text-muted-foreground ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="text-xs text-muted-foreground hidden sm:inline">Ανανέωση:</span>
                 <Select
                   value={refreshInterval.toString()}
                   onValueChange={(value) => onRefreshIntervalChange(parseInt(value))}
