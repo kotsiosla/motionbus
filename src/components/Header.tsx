@@ -76,7 +76,7 @@ export function Header({
 
           {/* Center: Operators and Routes */}
           <div className="flex flex-col items-center gap-3 flex-1">
-            <div className="-ml-48">
+            <div className="-ml-64">
               <OperatorSelector
                 value={selectedOperator}
                 onChange={onOperatorChange}
