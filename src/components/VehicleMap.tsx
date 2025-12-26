@@ -85,20 +85,37 @@ const createVehicleElement = (bearing?: number, isFollowed?: boolean, routeColor
 };
 
 // Create stop marker element
-const createStopElement = (hasVehicleStopped?: boolean, isFavorite?: boolean) => {
+const createStopElement = (hasVehicleStopped?: boolean, isFavorite?: boolean, stopType?: 'first' | 'last' | 'normal') => {
   const el = document.createElement('div');
   el.className = 'stop-marker-maplibre';
-  // Priority: vehicle stopped (green) > favorite (pink/red) > normal (orange)
-  const bgColor = hasVehicleStopped ? '#22c55e' : isFavorite ? '#ec4899' : '#f97316';
+  
+  // Priority: vehicle stopped (green) > first stop (green) > last stop (red) > favorite (pink) > normal (orange)
+  let bgColor = '#f97316'; // normal orange
+  let size = 20;
+  let icon = '<circle cx="12" cy="12" r="3"/>';
+  
+  if (hasVehicleStopped) {
+    bgColor = '#22c55e';
+    icon = '<rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="7" cy="18" r="1.5" fill="white"/><circle cx="17" cy="18" r="1.5" fill="white"/>';
+  } else if (stopType === 'first') {
+    bgColor = '#10b981'; // emerald green for start
+    size = 26;
+    icon = '<polygon points="5 3 19 12 5 21 5 3" fill="white" stroke="none"/>'; // play icon
+  } else if (stopType === 'last') {
+    bgColor = '#ef4444'; // red for end
+    size = 26;
+    icon = '<rect x="6" y="6" width="12" height="12" rx="2" fill="white" stroke="none"/>'; // stop icon
+  } else if (isFavorite) {
+    bgColor = '#ec4899';
+    icon = '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>';
+  }
+  
+  const glowEffect = (stopType === 'first' || stopType === 'last') ? `, 0 0 12px ${bgColor}` : (isFavorite ? `, 0 0 8px ${bgColor}` : '');
   
   el.innerHTML = `
-    <div style="width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${bgColor}; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3)${isFavorite ? ', 0 0 8px ' + bgColor : ''};">
-      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        ${hasVehicleStopped 
-          ? '<rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="7" cy="18" r="1.5" fill="white"/><circle cx="17" cy="18" r="1.5" fill="white"/>' 
-          : isFavorite 
-            ? '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>'
-            : '<circle cx="12" cy="12" r="3"/>'}
+    <div style="width: ${size}px; height: ${size}px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${bgColor}; border: ${size > 20 ? 3 : 2}px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3)${glowEffect};">
+      <svg xmlns="http://www.w3.org/2000/svg" width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        ${icon}
       </svg>
     </div>
   `;
@@ -347,6 +364,66 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     
     return routeStopIds.size > 0 ? routeStopIds.size : stops.filter(s => s.stop_lat !== undefined && s.stop_lon !== undefined).length;
   }, [selectedRoute, trips, stops, shapes, tripMappings]);
+
+  // Get first and last stop IDs for the selected route + total distance
+  const routeTerminals = useMemo(() => {
+    if (!selectedRoute || selectedRoute === 'all') {
+      return { firstStopId: null, lastStopId: null, totalKm: 0 };
+    }
+    
+    // Get ordered stops from trips
+    const routeTrips = trips.filter(t => t.routeId === selectedRoute && t.stopTimeUpdates?.length > 0);
+    
+    if (routeTrips.length > 0) {
+      // Find trip with most stop updates
+      const bestTrip = routeTrips.reduce((a, b) => 
+        (a.stopTimeUpdates?.length || 0) > (b.stopTimeUpdates?.length || 0) ? a : b
+      );
+      
+      if (bestTrip.stopTimeUpdates && bestTrip.stopTimeUpdates.length > 0) {
+        const sortedStops = [...bestTrip.stopTimeUpdates].sort((a, b) => 
+          (a.stopSequence || 0) - (b.stopSequence || 0)
+        );
+        
+        const firstStopId = sortedStops[0]?.stopId || null;
+        const lastStopId = sortedStops[sortedStops.length - 1]?.stopId || null;
+        
+        // Calculate distance from shapes
+        let totalKm = 0;
+        const routeShapeIds = new Set<string>();
+        tripMappings.forEach(mapping => {
+          if (mapping.route_id === selectedRoute) {
+            routeShapeIds.add(mapping.shape_id);
+          }
+        });
+        
+        if (routeShapeIds.size > 0) {
+          const routeShapePoints = shapes
+            .filter(p => routeShapeIds.has(p.shape_id))
+            .sort((a, b) => a.shape_pt_sequence - b.shape_pt_sequence);
+          
+          for (let i = 1; i < routeShapePoints.length; i++) {
+            const p1 = routeShapePoints[i - 1];
+            const p2 = routeShapePoints[i];
+            
+            // Haversine formula
+            const R = 6371; // Earth radius in km
+            const dLat = (p2.shape_pt_lat - p1.shape_pt_lat) * Math.PI / 180;
+            const dLon = (p2.shape_pt_lon - p1.shape_pt_lon) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(p1.shape_pt_lat * Math.PI / 180) * Math.cos(p2.shape_pt_lat * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            totalKm += R * c;
+          }
+        }
+        
+        return { firstStopId, lastStopId, totalKm: Math.round(totalKm * 10) / 10 };
+      }
+    }
+    
+    return { firstStopId: null, lastStopId: null, totalKm: 0 };
+  }, [selectedRoute, trips, shapes, tripMappings]);
 
   // Get next stop info for a vehicle
   const getNextStopInfo = useCallback((vehicle: Vehicle) => {
@@ -991,9 +1068,18 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       const arrivals = getArrivalsForStop(stop.stop_id);
       
       const isFavorite = favoriteStops.has(stop.stop_id);
-      const el = createStopElement(hasVehicleStopped, isFavorite);
+      
+      // Determine stop type
+      let stopType: 'first' | 'last' | 'normal' = 'normal';
+      if (routeTerminals.firstStopId === stop.stop_id) {
+        stopType = 'first';
+      } else if (routeTerminals.lastStopId === stop.stop_id) {
+        stopType = 'last';
+      }
+      
+      const el = createStopElement(hasVehicleStopped, isFavorite, stopType);
 
-      const statusColor = hasVehicleStopped ? '#22c55e' : '#f97316';
+      const statusColor = hasVehicleStopped ? '#22c55e' : stopType === 'first' ? '#10b981' : stopType === 'last' ? '#ef4444' : '#f97316';
       const statusText = hasVehicleStopped ? '<div style="color: #22c55e; font-weight: 500; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e5e5;">🚌 Λεωφορείο στη στάση</div>' : '';
 
       // Generate arrivals HTML with countdown placeholders
@@ -1042,6 +1128,13 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
 
       const arrivalsHtml = generateArrivalsHtml(arrivals);
 
+      // Terminal badge
+      const terminalBadge = stopType === 'first' 
+        ? '<div style="display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: #10b981; color: white; margin-left: 8px;">ΑΦΕΤΗΡΙΑ</div>'
+        : stopType === 'last'
+        ? '<div style="display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: #ef4444; color: white; margin-left: 8px;">ΤΕΡΜΑ</div>'
+        : '';
+
       const popup = new maplibregl.Popup({ 
         offset: 15, 
         className: 'stop-popup-maplibre',
@@ -1050,9 +1143,10 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       })
       .setHTML(`
         <div style="padding: 14px; min-width: 240px; max-width: 320px; font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #f8fafc; border-radius: 12px;">
-          <div style="font-weight: 600; font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
             <span style="color: #f1f5f9;">${stop.stop_name || 'Στάση'}</span>
+            ${terminalBadge}
           </div>
           <div style="font-size: 12px; color: #94a3b8; background: rgba(255,255,255,0.05); padding: 8px 10px; border-radius: 8px; margin-bottom: 8px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>ID:</span><span style="font-family: monospace; color: #67e8f9;">${stop.stop_id}</span></div>
@@ -1117,7 +1211,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
 
       stopMarkersRef.current.set(stop.stop_id, marker);
     });
-  }, [stops, showStops, stopsWithVehicles, getArrivalsForStop, favoriteStops, selectedRoute, trips, shapes, tripMappings]);
+  }, [stops, showStops, stopsWithVehicles, getArrivalsForStop, favoriteStops, selectedRoute, trips, shapes, tripMappings, routeTerminals]);
 
   // Handle user location
   const locateUser = () => {
@@ -1506,17 +1600,27 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       )}
 
       {/* Map controls */}
-      <div className="absolute top-2 right-2 glass-card rounded-lg px-3 py-2 flex items-center gap-2 z-[1000]">
-        <Switch
-          id="show-stops"
-          checked={showStops}
-          onCheckedChange={setShowStops}
-          className="data-[state=checked]:bg-orange-500"
-        />
-        <Label htmlFor="show-stops" className="text-xs cursor-pointer flex items-center gap-1">
-          <MapPin className="h-3 w-3 text-orange-500" />
-          Στάσεις ({routeStopsCount})
-        </Label>
+      <div className="absolute top-2 right-2 glass-card rounded-lg px-3 py-2 flex items-center gap-3 z-[1000]">
+        <div className="flex items-center gap-2">
+          <Switch
+            id="show-stops"
+            checked={showStops}
+            onCheckedChange={setShowStops}
+            className="data-[state=checked]:bg-orange-500"
+          />
+          <Label htmlFor="show-stops" className="text-xs cursor-pointer flex items-center gap-1">
+            <MapPin className="h-3 w-3 text-orange-500" />
+            Στάσεις ({routeStopsCount})
+          </Label>
+        </div>
+        {routeTerminals.totalKm > 0 && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground border-l border-border pl-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M8 6h10v10"/>
+            </svg>
+            <span className="font-medium">{routeTerminals.totalKm} km</span>
+          </div>
+        )}
       </div>
 
       {/* Route Stops Panel - Metro style */}
