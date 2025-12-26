@@ -14,6 +14,7 @@ import { OperatorSelector } from "@/components/OperatorSelector";
 import { RouteSelector } from "@/components/RouteSelector";
 import type { RouteInfo } from "@/types/gtfs";
 import motionLogo from "@/assets/motion-logo.svg";
+import creatorPhoto from "@/assets/creator-photo.jpeg";
 
 interface HeaderProps {
   isDark: boolean;
@@ -74,7 +75,15 @@ export function Header({
             <img src={motionLogo} alt="Motion Logo" className="h-8" />
             <div>
               <h1 className="text-lg font-bold tracking-tight">GTFS Realtime</h1>
-              <p className="text-xs text-muted-foreground">Live Tracking</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs text-muted-foreground">Live Tracking</p>
+                <span className="text-xs text-muted-foreground">by</span>
+                <img 
+                  src={creatorPhoto} 
+                  alt="Creator" 
+                  className="w-5 h-5 rounded-full object-cover ring-1 ring-primary/50"
+                />
+              </div>
             </div>
           </div>
 
