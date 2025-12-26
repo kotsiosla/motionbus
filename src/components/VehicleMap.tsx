@@ -1146,7 +1146,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       )}
 
       {/* Map controls */}
-      <div className="absolute top-4 right-4 glass-card rounded-lg px-3 py-2 flex items-center gap-2 z-[1000]">
+      <div className="absolute top-2 right-2 glass-card rounded-lg px-3 py-2 flex items-center gap-2 z-[1000]">
         <Switch
           id="show-stops"
           checked={showStops}
