@@ -180,6 +180,12 @@
 .leaflet-container {
   font-family: inherit;
   background: hsl(var(--background));
+  transform: translateZ(0);
+}
+
+.leaflet-tile {
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .dark .leaflet-tile {
