@@ -945,56 +945,119 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       const statusColor = hasVehicleStopped ? '#22c55e' : '#f97316';
       const statusText = hasVehicleStopped ? '<div style="color: #22c55e; font-weight: 500; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e5e5;">🚌 Λεωφορείο στη στάση</div>' : '';
 
-      let arrivalsHtml = '';
-      if (arrivals.length > 0) {
-        arrivalsHtml = `
-          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
-            <div style="font-weight: 500; font-size: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; color: #a5b4fc;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Επόμενες αφίξεις
+      // Generate arrivals HTML with countdown placeholders
+      const generateArrivalsHtml = (arrivalsData: typeof arrivals) => {
+        if (arrivalsData.length > 0) {
+          return `
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+              <div style="font-weight: 500; font-size: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; color: #a5b4fc;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Επόμενες αφίξεις
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                ${arrivalsData.map((arr, index) => {
+                  const routeColor = arr.routeColor ? `#${arr.routeColor}` : '#06b6d4';
+                  const delayText = arr.arrivalDelay !== undefined && arr.arrivalDelay !== 0 
+                    ? `<span style="color: ${arr.arrivalDelay > 0 ? '#f87171' : '#4ade80'}; font-size: 11px;">${formatDelay(arr.arrivalDelay)}</span>` 
+                    : '';
+                  
+                  // Calculate initial countdown
+                  const now = Math.floor(Date.now() / 1000);
+                  const secondsUntil = arr.arrivalTime ? arr.arrivalTime - now : 0;
+                  const minutes = Math.floor(secondsUntil / 60);
+                  const seconds = secondsUntil % 60;
+                  const countdownText = secondsUntil > 0 
+                    ? `${minutes}:${seconds.toString().padStart(2, '0')}`
+                    : 'Τώρα';
+                  const countdownColor = secondsUntil <= 120 ? '#f87171' : secondsUntil <= 300 ? '#fbbf24' : '#22d3ee';
+                  
+                  return `
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 6px 8px; background: rgba(255,255,255,0.05); border-radius: 6px;">
+                      <span style="font-weight: 700; padding: 3px 8px; border-radius: 6px; color: white; font-size: 11px; background: ${routeColor}; box-shadow: 0 2px 8px ${routeColor}40;">${arr.routeShortName || arr.routeId || '?'}</span>
+                      <span data-countdown="${arr.arrivalTime || 0}" style="font-family: monospace; color: ${countdownColor}; font-weight: 600; min-width: 45px;" class="eta-countdown">${countdownText}</span>
+                      <span style="color: #64748b; font-size: 10px;">(${formatETA(arr.arrivalTime)})</span>
+                      ${delayText}
+                      ${arr.vehicleLabel ? `<span style="color: #64748b; font-size: 10px;">(${arr.vehicleLabel})</span>` : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
             </div>
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-              ${arrivals.map(arr => {
-                const routeColor = arr.routeColor ? `#${arr.routeColor}` : '#06b6d4';
-                const delayText = arr.arrivalDelay !== undefined && arr.arrivalDelay !== 0 
-                  ? `<span style="color: ${arr.arrivalDelay > 0 ? '#f87171' : '#4ade80'}; font-size: 11px;">${formatDelay(arr.arrivalDelay)}</span>` 
-                  : '';
-                return `
-                  <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 6px 8px; background: rgba(255,255,255,0.05); border-radius: 6px;">
-                    <span style="font-weight: 700; padding: 3px 8px; border-radius: 6px; color: white; font-size: 11px; background: ${routeColor}; box-shadow: 0 2px 8px ${routeColor}40;">${arr.routeShortName || arr.routeId || '?'}</span>
-                    <span style="font-family: monospace; color: #22d3ee; font-weight: 600;">${formatETA(arr.arrivalTime)}</span>
-                    ${delayText}
-                    ${arr.vehicleLabel ? `<span style="color: #64748b; font-size: 10px;">(${arr.vehicleLabel})</span>` : ''}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      } else {
-        arrivalsHtml = '<div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; color: #64748b; text-align: center;">Δεν υπάρχουν προγραμματισμένες αφίξεις</div>';
-      }
+          `;
+        } else {
+          return '<div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 12px; color: #64748b; text-align: center;">Δεν υπάρχουν προγραμματισμένες αφίξεις</div>';
+        }
+      };
 
-        const popup = new maplibregl.Popup({ 
-          offset: 15, 
-          className: 'stop-popup-maplibre',
-          maxWidth: 'none',
-          closeOnClick: true
-        })
-        .setHTML(`
-          <div style="padding: 14px; min-width: 240px; max-width: 320px; font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #f8fafc; border-radius: 12px;">
-            <div style="font-weight: 600; font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
-              <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
-              <span style="color: #f1f5f9;">${stop.stop_name || 'Στάση'}</span>
-            </div>
-            <div style="font-size: 12px; color: #94a3b8; background: rgba(255,255,255,0.05); padding: 8px 10px; border-radius: 8px; margin-bottom: 8px;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>ID:</span><span style="font-family: monospace; color: #67e8f9;">${stop.stop_id}</span></div>
-              ${stop.stop_code ? `<div style="display: flex; justify-content: space-between;"><span>Κωδικός:</span><span style="font-family: monospace; color: #67e8f9;">${stop.stop_code}</span></div>` : ''}
-            </div>
-            ${hasVehicleStopped ? '<div style="color: #4ade80; font-weight: 500; padding: 8px 10px; background: rgba(74, 222, 128, 0.15); border-radius: 8px; font-size: 13px;">🚌 Λεωφορείο στη στάση</div>' : ''}
-            ${arrivalsHtml}
+      const arrivalsHtml = generateArrivalsHtml(arrivals);
+
+      const popup = new maplibregl.Popup({ 
+        offset: 15, 
+        className: 'stop-popup-maplibre',
+        maxWidth: 'none',
+        closeOnClick: true
+      })
+      .setHTML(`
+        <div style="padding: 14px; min-width: 240px; max-width: 320px; font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #f8fafc; border-radius: 12px;">
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 8px ${statusColor};"></span>
+            <span style="color: #f1f5f9;">${stop.stop_name || 'Στάση'}</span>
           </div>
-        `);
+          <div style="font-size: 12px; color: #94a3b8; background: rgba(255,255,255,0.05); padding: 8px 10px; border-radius: 8px; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>ID:</span><span style="font-family: monospace; color: #67e8f9;">${stop.stop_id}</span></div>
+            ${stop.stop_code ? `<div style="display: flex; justify-content: space-between;"><span>Κωδικός:</span><span style="font-family: monospace; color: #67e8f9;">${stop.stop_code}</span></div>` : ''}
+          </div>
+          ${hasVehicleStopped ? '<div style="color: #4ade80; font-weight: 500; padding: 8px 10px; background: rgba(74, 222, 128, 0.15); border-radius: 8px; font-size: 13px;">🚌 Λεωφορείο στη στάση</div>' : ''}
+          ${arrivalsHtml}
+        </div>
+      `);
+
+      // Setup countdown timer when popup opens
+      popup.on('open', () => {
+        const updateCountdowns = () => {
+          const countdownElements = document.querySelectorAll('.eta-countdown');
+          const now = Math.floor(Date.now() / 1000);
+          
+          countdownElements.forEach((el) => {
+            const arrivalTime = parseInt(el.getAttribute('data-countdown') || '0', 10);
+            if (arrivalTime === 0) return;
+            
+            const secondsUntil = arrivalTime - now;
+            
+            if (secondsUntil <= 0) {
+              el.textContent = 'Τώρα';
+              (el as HTMLElement).style.color = '#4ade80';
+            } else {
+              const minutes = Math.floor(secondsUntil / 60);
+              const seconds = secondsUntil % 60;
+              el.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+              
+              // Color based on urgency
+              if (secondsUntil <= 120) {
+                (el as HTMLElement).style.color = '#f87171'; // Red - very soon
+              } else if (secondsUntil <= 300) {
+                (el as HTMLElement).style.color = '#fbbf24'; // Yellow - soon
+              } else {
+                (el as HTMLElement).style.color = '#22d3ee'; // Cyan - normal
+              }
+            }
+          });
+        };
+        
+        // Update immediately and then every second
+        updateCountdowns();
+        const countdownInterval = setInterval(updateCountdowns, 1000);
+        
+        // Store interval reference for cleanup
+        (popup as any)._countdownInterval = countdownInterval;
+      });
+      
+      popup.on('close', () => {
+        // Clear countdown interval when popup closes
+        if ((popup as any)._countdownInterval) {
+          clearInterval((popup as any)._countdownInterval);
+        }
+      });
 
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([stop.stop_lon!, stop.stop_lat!])
