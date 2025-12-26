@@ -75,31 +75,33 @@ export function Header({
           </div>
 
           {/* Center: Operators and Routes */}
-          <div className="flex items-center gap-3 flex-wrap justify-center flex-1">
+          <div className="flex flex-col items-center gap-2 flex-1">
             <OperatorSelector
               value={selectedOperator}
               onChange={onOperatorChange}
             />
-            <RouteSelector
-              value={selectedRoute}
-              onChange={onRouteChange}
-              routes={availableRoutes}
-              routeNames={routeNamesMap}
-              disabled={selectedOperator === 'all'}
-              isLoading={isRoutesLoading}
-            />
-            {onShowLiveOnlyChange && (
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="live-only"
-                  checked={showLiveOnly}
-                  onCheckedChange={onShowLiveOnlyChange}
-                />
-                <Label htmlFor="live-only" className="text-xs text-muted-foreground cursor-pointer">
-                  Live only ({liveRoutesCount || 0})
-                </Label>
-              </div>
-            )}
+            <div className="flex items-center gap-3 flex-wrap justify-center">
+              <RouteSelector
+                value={selectedRoute}
+                onChange={onRouteChange}
+                routes={availableRoutes}
+                routeNames={routeNamesMap}
+                disabled={selectedOperator === 'all'}
+                isLoading={isRoutesLoading}
+              />
+              {onShowLiveOnlyChange && (
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="live-only"
+                    checked={showLiveOnly}
+                    onCheckedChange={onShowLiveOnlyChange}
+                  />
+                  <Label htmlFor="live-only" className="text-xs text-muted-foreground cursor-pointer">
+                    Show live Buses only ({liveRoutesCount || 0})
+                  </Label>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right: Refresh, Time, Theme */}
