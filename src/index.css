@@ -248,6 +248,15 @@
 }
 
 /* MapLibre GL Popup Styles */
+.maplibregl-canvas {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.maplibregl-canvas-container {
+  background: hsl(var(--background));
+}
+
 .maplibregl-popup {
   z-index: 9999 !important;
 }
