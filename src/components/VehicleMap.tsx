@@ -1059,15 +1059,17 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       />
 
       {/* Route Planner Button */}
-      <Button
-        variant="default"
-        size="sm"
-        className="absolute bottom-16 left-4 z-[1000] gap-2 shadow-lg"
-        onClick={() => setShowRoutePlanner(true)}
-      >
-        <Route className="h-4 w-4" />
-        Σχεδιασμός Διαδρομής
-      </Button>
+      {!showRoutePlanner && (
+        <Button
+          variant="default"
+          size="sm"
+          className="absolute bottom-16 left-4 z-[1000] gap-2 shadow-lg"
+          onClick={() => setShowRoutePlanner(true)}
+        >
+          <Route className="h-4 w-4" />
+          Σχεδιασμός Διαδρομής
+        </Button>
+      )}
       {isLoading && (
         <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center">
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -1144,26 +1146,17 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       )}
 
       {/* Map controls */}
-      {showStopsControl && (
-        <div className="absolute top-4 right-4 glass-card rounded-lg px-3 py-2 flex items-center gap-2 z-[1000]">
-          <Switch
-            id="show-stops"
-            checked={showStops}
-            onCheckedChange={setShowStops}
-          />
-          <Label htmlFor="show-stops" className="text-xs cursor-pointer flex items-center gap-1">
-            <MapPin className="h-3 w-3 text-orange-500" />
-            Στάσεις ({stops.length})
-          </Label>
-          <button
-            onClick={() => setShowStopsControl(false)}
-            className="p-0.5 hover:bg-muted rounded transition-colors ml-1"
-            title="Κλείσιμο"
-          >
-            <X className="h-3 w-3 text-muted-foreground" />
-          </button>
-        </div>
-      )}
+      <div className="absolute top-4 right-4 glass-card rounded-lg px-3 py-2 flex items-center gap-2 z-[1000]">
+        <Switch
+          id="show-stops"
+          checked={showStops}
+          onCheckedChange={setShowStops}
+        />
+        <Label htmlFor="show-stops" className="text-xs cursor-pointer flex items-center gap-1">
+          <MapPin className="h-3 w-3 text-orange-500" />
+          Στάσεις ({stops.length})
+        </Label>
+      </div>
 
       {/* Night mode button */}
       <Button
