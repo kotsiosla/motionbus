@@ -367,7 +367,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       },
       center: [33.4, 35.1], // Center of Cyprus
       zoom: 8.5, // Zoomed out to show all of Cyprus
-      pitch: 45, // Start with some pitch to show 3D effect
+      pitch: 0, // Flat/vertical view
       bearing: 0,
       maxPitch: 70,
       maxBounds: [[31.8, 34.4], [35.0, 35.8]], // Cyprus boundaries (SW, NE)
