@@ -1345,6 +1345,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           stops={stops}
           shapes={shapes}
           tripMappings={tripMappings}
+          vehicles={vehicles}
           onClose={() => setShowRouteStopsPanel(false)}
           onStopClick={(stopId, lat, lon) => {
             mapRef.current?.flyTo({
