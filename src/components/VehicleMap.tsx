@@ -350,6 +350,60 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     return arrivals.slice(0, 5);
   }, [trips, vehicles, routeNamesMap]);
 
+  // Track notified arrivals for highlighted stop to avoid duplicate notifications
+  const highlightedStopNotifiedRef = useRef<Set<string>>(new Set());
+
+  // Monitor arrivals at the highlighted stop and notify when bus is within 2 minutes
+  useEffect(() => {
+    if (!highlightedStopId || !notificationsEnabled) return;
+
+    const checkArrivals = () => {
+      const arrivals = getArrivalsForStop(highlightedStopId);
+      const now = Date.now() / 1000;
+      const twoMinutes = 2 * 60; // 2 minutes in seconds
+
+      arrivals.forEach(arrival => {
+        if (!arrival.arrivalTime) return;
+        
+        const timeUntilArrival = arrival.arrivalTime - now;
+        const notificationKey = `${highlightedStopId}-${arrival.tripId}-${arrival.arrivalTime}`;
+        
+        // Check if bus is within 2 minutes and we haven't notified yet
+        if (timeUntilArrival > 0 && timeUntilArrival <= twoMinutes && !highlightedStopNotifiedRef.current.has(notificationKey)) {
+          highlightedStopNotifiedRef.current.add(notificationKey);
+          
+          const stopInfo = stopMap.get(highlightedStopId);
+          const minutesAway = Math.round(timeUntilArrival / 60);
+          const routeName = arrival.routeShortName || arrival.routeId || 'Λεωφορείο';
+          
+          // Play notification sound
+          playNotificationSound();
+          
+          // Show toast notification
+          toast({
+            title: `🚌 ${routeName} σε ${minutesAway <= 1 ? '1 λεπτό' : `${minutesAway} λεπτά`}!`,
+            description: stopInfo?.stop_name || highlightedStopId,
+            duration: 8000,
+            className: 'bg-cyan-600 text-white border-cyan-500',
+          });
+        }
+      });
+    };
+
+    // Check immediately
+    checkArrivals();
+
+    // Check every 10 seconds
+    const interval = setInterval(checkArrivals, 10000);
+
+    return () => clearInterval(interval);
+  }, [highlightedStopId, notificationsEnabled, getArrivalsForStop, stopMap, playNotificationSound, toast]);
+
+  // Clear highlighted stop notifications when stop changes
+  useEffect(() => {
+    highlightedStopNotifiedRef.current.clear();
+  }, [highlightedStopId]);
+
   // Initialize map
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
