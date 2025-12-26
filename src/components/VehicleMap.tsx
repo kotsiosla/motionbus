@@ -194,8 +194,18 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     });
   }, []);
 
-  // Play notification sound using Web Audio API
+  // Play notification sound and vibration
   const playNotificationSound = useCallback(() => {
+    // Trigger vibration on mobile (works even if sound is disabled)
+    if ('vibrate' in navigator) {
+      try {
+        // Pattern: vibrate 200ms, pause 100ms, vibrate 200ms
+        navigator.vibrate([200, 100, 200]);
+      } catch (error) {
+        console.error('Error triggering vibration:', error);
+      }
+    }
+    
     if (!soundEnabled) return;
     
     try {
