@@ -2070,7 +2070,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
               }
             }
           }}
-          onClose={() => {}}
+          onClose={() => setShowRouteStopsPanel(false)}
           onStopClick={(stopId, lat, lon) => {
             mapRef.current?.flyTo({
               center: [lon, lat],

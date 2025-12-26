@@ -569,6 +569,14 @@ export function RouteStopsPanel({
               <ChevronUp className="h-4 w-4" style={{ color: routeTextColor }} />
             )}
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 hover:bg-white/20"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" style={{ color: routeTextColor }} />
+          </Button>
         </div>
       </div>
 
