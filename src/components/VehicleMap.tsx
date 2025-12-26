@@ -1800,11 +1800,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           <Button
             variant={showSchedulePanel ? "default" : "outline"}
             size="sm"
-            className="h-7 text-xs gap-1 border-l border-border ml-2"
+            className={`h-8 text-xs gap-1.5 ml-2 ${showSchedulePanel ? '' : 'bg-primary/10 border-primary text-primary hover:bg-primary/20'}`}
             onClick={() => setShowSchedulePanel(!showSchedulePanel)}
           >
-            <Clock className="h-3 w-3" />
-            Πρόγραμμα
+            <Clock className="h-4 w-4" />
+            <span className="font-medium">Πρόγραμμα</span>
           </Button>
         )}
       </div>
