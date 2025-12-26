@@ -3,6 +3,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import type { Trip, StaticStop, RouteInfo, ShapePoint, TripShapeMapping, Vehicle } from "@/types/gtfs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RouteStopsPanelProps {
   selectedRoute: string;
@@ -503,31 +504,58 @@ export function RouteStopsPanel({
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {totalKm !== undefined && totalKm > 0 && (
-            <div 
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium"
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: routeTextColor }}
-            >
-              <MapPin className="h-3 w-3" />
-              {totalKm} km
-            </div>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium cursor-help"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: routeTextColor }}
+                  >
+                    <MapPin className="h-3 w-3" />
+                    {totalKm} km
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  Συνολικό μήκος διαδρομής
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           {estimatedMinutes !== undefined && estimatedMinutes > 0 && (
-            <div 
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium"
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: routeTextColor }}
-            >
-              <Clock className="h-3 w-3" />
-              {estimatedMinutes}'
-            </div>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium cursor-help"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: routeTextColor }}
+                  >
+                    <Clock className="h-3 w-3" />
+                    {estimatedMinutes}'
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  Εκτιμώμενος χρόνος βάσει realtime δεδομένων
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           {routeVehicles.length > 0 && (
-            <div 
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium"
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: routeTextColor }}
-            >
-              <Bus className="h-3 w-3" />
-              {routeVehicles.length}
-            </div>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium cursor-help"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: routeTextColor }}
+                  >
+                    <Bus className="h-3 w-3" />
+                    {routeVehicles.length}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  Ενεργά λεωφορεία στη διαδρομή
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           <Button
             variant="ghost"
