@@ -12,6 +12,12 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { OperatorSelector } from "@/components/OperatorSelector";
 import { RouteSelector } from "@/components/RouteSelector";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { RouteInfo } from "@/types/gtfs";
 import motionLogo from "@/assets/motion-logo.svg";
 import creatorPhoto from "@/assets/creator-photo.jpeg";
@@ -78,11 +84,20 @@ export function Header({
               <div className="flex items-center gap-1.5">
                 <p className="text-xs text-muted-foreground">Live Tracking</p>
                 <span className="text-xs text-muted-foreground">by</span>
-                <img 
-                  src={creatorPhoto} 
-                  alt="Creator" 
-                  className="w-7 h-7 rounded-full object-cover ring-1 ring-primary/50"
-                />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <img 
+                        src={creatorPhoto} 
+                        alt="KA" 
+                        className="w-9 h-9 rounded-full object-cover ring-1 ring-primary/50 cursor-pointer"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>KA</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
           </div>
