@@ -1082,7 +1082,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     stopMarkersRef.current.forEach(marker => marker.remove());
     stopMarkersRef.current.clear();
 
-    if (!showStops) return;
+    // When stops are off but route is selected, show only terminals
+    const showOnlyTerminals = !showStops && selectedRoute && selectedRoute !== 'all' && 
+      (routeTerminals.firstStopId || routeTerminals.lastStopId);
+    
+    if (!showStops && !showOnlyTerminals) return;
 
     // Get stop IDs for the selected route from trips
     const routeStopIds = new Set<string>();
@@ -1199,9 +1203,16 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       }
     }
 
-    // Filter stops: if a route is selected, show only its stops; otherwise show all
+    // Filter stops based on mode
     const validStops = stops.filter((s) => {
       if (s.stop_lat === undefined || s.stop_lon === undefined) return false;
+      
+      // If showing only terminals, filter to first and last stop only
+      if (showOnlyTerminals) {
+        return s.stop_id === routeTerminals.firstStopId || s.stop_id === routeTerminals.lastStopId;
+      }
+      
+      // If a route is selected, show only its stops
       if (selectedRoute && selectedRoute !== 'all' && routeStopIds.size > 0) {
         return routeStopIds.has(s.stop_id);
       }
