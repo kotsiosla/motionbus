@@ -1133,6 +1133,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     // Build stop sequence map for route stops
     const stopSequenceMap = new Map<string, number>();
     if (selectedRoute && selectedRoute !== 'all') {
+      // First try from trips (realtime data)
       const routeTrips = trips.filter(t => t.routeId === selectedRoute && t.stopTimeUpdates?.length > 0);
       if (routeTrips.length > 0) {
         const bestTrip = routeTrips.reduce((a, b) => 
@@ -1146,6 +1147,53 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
             if (stu.stopId) {
               stopSequenceMap.set(stu.stopId, index + 1);
             }
+          });
+        }
+      }
+      
+      // If no trips data, assign sequence based on proximity to route shape
+      if (stopSequenceMap.size === 0 && routeStopIds.size > 0) {
+        // Get shape points for ordering
+        const routeShapeIds = new Set<string>();
+        tripMappings.forEach(mapping => {
+          if (mapping.route_id === selectedRoute) {
+            routeShapeIds.add(mapping.shape_id);
+          }
+        });
+        
+        const routeShapePoints = shapes
+          .filter(p => routeShapeIds.has(p.shape_id))
+          .sort((a, b) => a.shape_pt_sequence - b.shape_pt_sequence);
+        
+        if (routeShapePoints.length > 0) {
+          // For each stop, find closest shape point and use its sequence
+          const stopsWithShapeSeq: { stopId: string; shapeSeq: number }[] = [];
+          
+          routeStopIds.forEach(stopId => {
+            const stop = stops.find(s => s.stop_id === stopId);
+            if (!stop || stop.stop_lat === undefined || stop.stop_lon === undefined) return;
+            
+            let minDist = Infinity;
+            let closestSeq = 0;
+            
+            for (const point of routeShapePoints) {
+              const dist = Math.sqrt(
+                Math.pow((stop.stop_lat - point.shape_pt_lat) * 111000, 2) +
+                Math.pow((stop.stop_lon - point.shape_pt_lon) * 111000 * Math.cos(stop.stop_lat * Math.PI / 180), 2)
+              );
+              if (dist < minDist) {
+                minDist = dist;
+                closestSeq = point.shape_pt_sequence;
+              }
+            }
+            
+            stopsWithShapeSeq.push({ stopId, shapeSeq: closestSeq });
+          });
+          
+          // Sort by shape sequence and assign numbers
+          stopsWithShapeSeq.sort((a, b) => a.shapeSeq - b.shapeSeq);
+          stopsWithShapeSeq.forEach((item, index) => {
+            stopSequenceMap.set(item.stopId, index + 1);
           });
         }
       }
