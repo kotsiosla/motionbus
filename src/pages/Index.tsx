@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Map as MapIcon, Route, MapPin, Bell, Bus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { VehicleMap } from "@/components/VehicleMap";
@@ -142,6 +141,21 @@ const Index = () => {
       )}
 
       <main className="flex-1 container mx-auto px-4 py-6">
+        <section className="mb-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Motionbus Live</p>
+              <h2 className="text-3xl font-semibold">Κέντρο Ζωντανής Παρακολούθησης</h2>
+              <p className="text-sm text-muted-foreground max-w-2xl">
+                Παρακολούθησε στόλο, δρομολόγια και ειδοποιήσεις σε πραγματικό χρόνο, με γρήγορα φίλτρα και
+                καθαρή εικόνα της κατάστασης στο δίκτυο.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/80 px-4 py-3 shadow-sm">
+              <span className={`h-2.5 w-2.5 rounded-full ${isLoading ? "bg-warning animate-pulse" : "bg-success"}`} />
+              <div>
+                <p className="text-xs text-muted-foreground">Τελευταία ενημέρωση</p>
+                <p className="text-sm font-semibold">{formattedLastUpdate}</p>
               </div>
             </div>
           </div>
@@ -183,11 +197,13 @@ const Index = () => {
                 <span className="rounded-full bg-destructive/10 p-2 text-destructive">
                   <Bell className="h-4 w-4" />
                 </span>
-              </div
+              </div>
+              <p className="mt-3 text-2xl font-semibold">{routeCount} / {alertCount}</p>
               <p className="text-xs text-muted-foreground">Routes & alerts</p>
             </div>
           </div>
         </section>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-4">
           <TabsList className="grid w-full grid-cols-4 rounded-full bg-muted/60 p-1 shadow-sm">
             <TabsTrigger value="map" className="flex items-center gap-2 rounded-full data-[state=active]:bg-background data-[state=active]:shadow">

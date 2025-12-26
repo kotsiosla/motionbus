@@ -63,10 +63,10 @@ export function Header({
 
   const formatLastUpdate = (timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString("el-GR", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
+    return date.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
       hour12: false,
     });
   };
@@ -80,6 +80,7 @@ export function Header({
             <div>
               <h1 className="text-lg font-bold tracking-tight">GTFS Realtime</h1>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Live Network</span>
                 <span className="h-1 w-1 rounded-full bg-muted-foreground/60" />
                 <span>by</span>
                 <TooltipProvider>
@@ -130,6 +131,7 @@ export function Header({
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className={`h-2 w-2 rounded-full ${isLoading ? "bg-warning animate-pulse" : "bg-success"}`} />
+              <span>Updated</span>
               {lastUpdate && <span className="font-semibold text-foreground">{formatLastUpdate(lastUpdate)}</span>}
             </div>
             <div
