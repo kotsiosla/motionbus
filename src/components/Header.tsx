@@ -1,4 +1,5 @@
-import { Moon, Sun, RefreshCw, Bus } from "lucide-react";
+import { Moon, Sun, RefreshCw, Bus, Menu, X } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -51,6 +52,8 @@ export function Header({
   onShowLiveOnlyChange,
   liveRoutesCount,
 }: HeaderProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const formatLastUpdate = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('en-GB', {
@@ -64,7 +67,8 @@ export function Header({
   return (
     <header className="glass-card border-b sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
+        {/* Desktop Layout */}
+        <div className="hidden md:flex items-center justify-between gap-4">
           {/* Left: Logo */}
           <div className="flex items-center gap-3">
             <img src={motionLogo} alt="Motion Logo" className="h-8" />
@@ -146,6 +150,99 @@ export function Header({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Mobile Layout */}
+        <div className="md:hidden">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-2">
+              <img src={motionLogo} alt="Motion Logo" className="h-6" />
+              <div>
+                <h1 className="text-sm font-bold tracking-tight">GTFS Realtime</h1>
+              </div>
+            </div>
+
+            {/* Right controls */}
+            <div className="flex items-center gap-2">
+              {lastUpdate && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-warning animate-pulse' : 'bg-success'}`} />
+                  <span>{formatLastUpdate(lastUpdate)}</span>
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleTheme}
+                className="h-8 w-8"
+              >
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="h-8 w-8"
+              >
+                {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="mt-3 pt-3 border-t border-border space-y-3">
+              <div className="flex flex-col gap-2">
+                <OperatorSelector
+                  value={selectedOperator}
+                  onChange={onOperatorChange}
+                />
+                <RouteSelector
+                  value={selectedRoute}
+                  onChange={onRouteChange}
+                  routes={availableRoutes}
+                  routeNames={routeNamesMap}
+                  disabled={selectedOperator === 'all'}
+                  isLoading={isRoutesLoading}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                {onShowLiveOnlyChange && (
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="live-only-mobile"
+                      checked={showLiveOnly}
+                      onCheckedChange={onShowLiveOnlyChange}
+                    />
+                    <Label htmlFor="live-only-mobile" className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1">
+                      <Bus className="h-3 w-3" />
+                      Live only ({liveRoutesCount || 0})
+                    </Label>
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-2">
+                  <RefreshCw className={`h-3 w-3 text-muted-foreground ${isLoading ? 'animate-spin' : ''}`} />
+                  <Select
+                    value={refreshInterval.toString()}
+                    onValueChange={(value) => onRefreshIntervalChange(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-[70px] h-7 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 sec</SelectItem>
+                      <SelectItem value="10">10 sec</SelectItem>
+                      <SelectItem value="20">20 sec</SelectItem>
+                      <SelectItem value="30">30 sec</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>
