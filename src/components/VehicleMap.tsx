@@ -641,20 +641,20 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       style: {
         version: 8,
         sources: {
-          'satellite': {
+          osm: {
             type: 'raster',
             tiles: [
-              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+              'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
             ],
             tileSize: 256,
-            attribution: 'Map data © Esri'
+            attribution: '© OpenStreetMap contributors'
           }
         },
         layers: [
           {
-            id: 'satellite-layer',
+            id: 'osm-layer',
             type: 'raster',
-            source: 'satellite',
+            source: 'osm',
             minzoom: 0,
             maxzoom: 22,
             paint: {
@@ -733,8 +733,8 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     }
 
     // Update satellite layer visibility
-    if (map.getLayer('satellite-layer')) {
-      map.setLayoutProperty('satellite-layer', 'visibility', isNightMode ? 'none' : 'visible');
+    if (map.getLayer('osm-layer')) {
+      map.setLayoutProperty('osm-layer', 'visibility', isNightMode ? 'none' : 'visible');
     }
     if (map.getLayer('labels-layer')) {
       map.setLayoutProperty('labels-layer', 'visibility', isNightMode ? 'none' : 'visible');
@@ -769,7 +769,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           paint: {
             'fill-color': '#0f172a'
           }
-        }, 'satellite-layer'); // Insert below satellite
+        }, 'osm-layer'); // Insert below base map
       }
       map.setLayoutProperty('dark-background-layer', 'visibility', 'visible');
     } else {
