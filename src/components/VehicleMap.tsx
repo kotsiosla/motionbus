@@ -156,9 +156,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
   const shapesSourceRef = useRef<boolean>(false);
   const notifiedArrivalsRef = useRef<Set<string>>(new Set());
   const audioContextRef = useRef<AudioContext | null>(null);
-  const walkingRouteRef = useRef<boolean>(false);
-  const walkingIconMarkerRef = useRef<maplibregl.Marker | null>(null);
-  const walkingAnimationRef = useRef<number | null>(null);
   
   const [followedVehicleId, setFollowedVehicleId] = useState<string | null>(null);
   const [showStops, setShowStops] = useState(false);
@@ -1712,32 +1709,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
               highlightedMarkerRef.current = null;
             }
             
-            // Stop previous walking animation
-            if (walkingAnimationRef.current) {
-              cancelAnimationFrame(walkingAnimationRef.current);
-              walkingAnimationRef.current = null;
-            }
-            
-            // Remove previous walking icon marker
-            if (walkingIconMarkerRef.current) {
-              walkingIconMarkerRef.current.remove();
-              walkingIconMarkerRef.current = null;
-            }
-            
-            // Remove previous walking route
-            if (mapRef.current && walkingRouteRef.current) {
-              if (mapRef.current.getLayer('walking-route-line')) {
-                mapRef.current.removeLayer('walking-route-line');
-              }
-              if (mapRef.current.getLayer('walking-route-dots')) {
-                mapRef.current.removeLayer('walking-route-dots');
-              }
-              if (mapRef.current.getSource('walking-route')) {
-                mapRef.current.removeSource('walking-route');
-              }
-              walkingRouteRef.current = false;
-            }
-            
             setHighlightedStopId(stopId);
             
             // Create highlighted marker on map with popup
@@ -1835,132 +1806,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
                 
                 // Show popup automatically
                 highlightedMarkerRef.current.togglePopup();
-                
-                // Draw walking route if user location is available
-                if (userLocation && mapRef.current) {
-                  const walkingRoute: [number, number][] = [
-                    [userLocation.lng, userLocation.lat],
-                    [stop.stop_lon, stop.stop_lat]
-                  ];
-                  
-                  // Add walking route source and layer
-                  if (!mapRef.current.getSource('walking-route')) {
-                    mapRef.current.addSource('walking-route', {
-                      type: 'geojson',
-                      data: {
-                        type: 'Feature',
-                        properties: {},
-                        geometry: {
-                          type: 'LineString',
-                          coordinates: walkingRoute
-                        }
-                      }
-                    });
-                    
-                    // Dashed line for walking route
-                    mapRef.current.addLayer({
-                      id: 'walking-route-line',
-                      type: 'line',
-                      source: 'walking-route',
-                      layout: {
-                        'line-join': 'round',
-                        'line-cap': 'round'
-                      },
-                      paint: {
-                        'line-color': '#06b6d4',
-                        'line-width': 4,
-                        'line-dasharray': [2, 2]
-                      }
-                    });
-                    
-                    // Animated dots along the route
-                    mapRef.current.addLayer({
-                      id: 'walking-route-dots',
-                      type: 'circle',
-                      source: 'walking-route',
-                      paint: {
-                        'circle-radius': 3,
-                        'circle-color': '#22d3ee'
-                      }
-                    });
-                    
-                    walkingRouteRef.current = true;
-                    
-                    // Create animated walking icon
-                    const walkingEl = document.createElement('div');
-                    walkingEl.className = 'walking-icon-marker';
-                    walkingEl.innerHTML = `
-                      <div style="
-                        width: 32px; 
-                        height: 32px; 
-                        border-radius: 50%; 
-                        background: linear-gradient(135deg, #06b6d4, #0891b2); 
-                        display: flex; 
-                        align-items: center; 
-                        justify-content: center; 
-                        box-shadow: 0 2px 8px rgba(6, 182, 212, 0.5), 0 0 0 3px rgba(6, 182, 212, 0.3);
-                        animation: bounce 0.5s ease-in-out infinite alternate;
-                      ">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                          <circle cx="12" cy="5" r="2"/>
-                          <path d="m10 22 4-7.5"/>
-                          <path d="M14 13 7 8.5l2-4.5"/>
-                          <path d="m14 22-3-3 4-4-3-3"/>
-                        </svg>
-                      </div>
-                    `;
-                    
-                    // Add bounce animation style
-                    const styleEl = document.createElement('style');
-                    styleEl.textContent = `
-                      @keyframes bounce {
-                        0% { transform: translateY(0); }
-                        100% { transform: translateY(-4px); }
-                      }
-                    `;
-                    document.head.appendChild(styleEl);
-                    
-                    walkingIconMarkerRef.current = new maplibregl.Marker({ element: walkingEl })
-                      .setLngLat([userLocation.lng, userLocation.lat])
-                      .addTo(mapRef.current);
-                    
-                    // Animate the walking icon along the route
-                    const startLng = userLocation.lng;
-                    const startLat = userLocation.lat;
-                    const endLng = stop.stop_lon;
-                    const endLat = stop.stop_lat;
-                    const duration = 8000; // 8 seconds for full journey
-                    let startTime: number | null = null;
-                    
-                    const animateWalking = (timestamp: number) => {
-                      if (!startTime) startTime = timestamp;
-                      const elapsed = timestamp - startTime;
-                      const progress = Math.min(elapsed / duration, 1);
-                      
-                      // Ease in-out for smoother animation
-                      const easeProgress = progress < 0.5 
-                        ? 2 * progress * progress 
-                        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-                      
-                      const currentLng = startLng + (endLng - startLng) * easeProgress;
-                      const currentLat = startLat + (endLat - startLat) * easeProgress;
-                      
-                      if (walkingIconMarkerRef.current) {
-                        walkingIconMarkerRef.current.setLngLat([currentLng, currentLat]);
-                      }
-                      
-                      if (progress < 1) {
-                        walkingAnimationRef.current = requestAnimationFrame(animateWalking);
-                      } else {
-                        // Restart animation
-                        startTime = null;
-                        walkingAnimationRef.current = requestAnimationFrame(animateWalking);
-                      }
-                    };
-                    
-                    walkingAnimationRef.current = requestAnimationFrame(animateWalking);
-                  }
-                }
               }
             }
           }}
