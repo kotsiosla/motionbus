@@ -657,8 +657,8 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
             source: 'osm',
             minzoom: 0,
             maxzoom: 22,
-            paint: {
-              'raster-resampling': 'nearest',
+          paint: {
+              'raster-resampling': 'linear',
               'raster-fade-duration': 0
             }
           }
