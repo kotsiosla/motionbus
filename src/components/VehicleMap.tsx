@@ -1162,7 +1162,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       <Button
         variant="secondary"
         size="icon"
-        className={`absolute top-16 right-4 z-[1000] glass-card h-9 w-9 ${isAutoNightMode ? 'ring-2 ring-primary/50' : ''}`}
+        className={`absolute top-14 right-4 z-[1000] glass-card h-9 w-9 ${isAutoNightMode ? 'ring-2 ring-primary/50' : ''}`}
         onClick={handleNightModeToggle}
         title={`${isNightMode ? 'Λειτουργία ημέρας' : 'Λειτουργία νύχτας'}${isAutoNightMode ? ' (αυτόματο)' : ''}`}
       >
@@ -1177,7 +1177,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       <Button
         variant="secondary"
         size="sm"
-        className={`absolute top-[6.5rem] right-4 z-[1000] glass-card h-7 px-2 text-[10px] ${isAutoNightMode ? 'bg-primary/20' : ''}`}
+        className={`absolute top-24 right-4 z-[1000] glass-card h-7 px-2 text-[10px] ${isAutoNightMode ? 'bg-primary/20' : ''}`}
         onClick={() => setIsAutoNightMode(!isAutoNightMode)}
         title="Αυτόματη εναλλαγή βάσει ώρας"
       >
@@ -1188,7 +1188,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       <Button
         variant="secondary"
         size="icon"
-        className="absolute top-[8.5rem] right-4 z-[1000] glass-card h-9 w-9"
+        className="absolute top-32 right-4 z-[1000] glass-card h-9 w-9"
         onClick={locateUser}
         disabled={isLocating}
         title="Εντοπισμός τοποθεσίας"
@@ -1200,7 +1200,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       <Button
         variant="secondary"
         size="icon"
-        className={`absolute top-[10.5rem] right-4 z-[1000] glass-card h-9 w-9 ${notificationsEnabled ? 'ring-2 ring-green-500/50' : ''}`}
+        className={`absolute top-44 right-4 z-[1000] glass-card h-9 w-9 ${notificationsEnabled ? 'ring-2 ring-green-500/50' : ''}`}
         onClick={() => setNotificationsEnabled(!notificationsEnabled)}
         title={notificationsEnabled ? 'Απενεργοποίηση ειδοποιήσεων' : 'Ενεργοποίηση ειδοποιήσεων'}
       >
@@ -1215,7 +1215,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       <Button
         variant="secondary"
         size="icon"
-        className={`absolute top-[12.5rem] right-4 z-[1000] glass-card h-9 w-9 ${soundEnabled ? 'ring-2 ring-blue-500/50' : ''}`}
+        className={`absolute top-56 right-4 z-[1000] glass-card h-9 w-9 ${soundEnabled ? 'ring-2 ring-blue-500/50' : ''}`}
         onClick={() => setSoundEnabled(!soundEnabled)}
         title={soundEnabled ? 'Απενεργοποίηση ήχου' : 'Ενεργοποίηση ήχου'}
       >
@@ -1230,7 +1230,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       <Button
         variant="secondary"
         size="icon"
-        className={`absolute top-[14.5rem] right-4 z-[1000] glass-card h-9 w-9 ${is3DMode ? 'ring-2 ring-purple-500/50' : ''}`}
+        className={`absolute top-[17rem] right-4 z-[1000] glass-card h-9 w-9 ${is3DMode ? 'ring-2 ring-purple-500/50' : ''}`}
         onClick={() => {
           setIs3DMode(!is3DMode);
           mapRef.current?.easeTo({
