@@ -347,13 +347,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
             ],
             tileSize: 256,
             attribution: 'Tiles © Esri'
-          },
-          'labels': {
-            type: 'raster',
-            tiles: [
-              'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
-            ],
-            tileSize: 256
           }
         },
         layers: [
@@ -361,13 +354,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
             id: 'satellite-layer',
             type: 'raster',
             source: 'satellite',
-            minzoom: 0,
-            maxzoom: 22
-          },
-          {
-            id: 'labels-layer',
-            type: 'raster',
-            source: 'labels',
             minzoom: 0,
             maxzoom: 22
           }
@@ -405,25 +391,10 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
 
         shapesSourceRef.current = true;
 
-        // Add route planning layers
+        // Add route planning source (no layer for now - disabled)
         mapRef.current!.addSource('route-line', {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] }
-        });
-
-        mapRef.current!.addLayer({
-          id: 'route-line-layer',
-          type: 'line',
-          source: 'route-line',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': ['get', 'color'],
-            'line-width': 5,
-            'line-opacity': 0.8
-          }
         });
 
         // Add origin/destination markers source
@@ -944,93 +915,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     });
   }, [nearbyStops, trips, notificationsEnabled, getArrivalsForStop, toast, playNotificationSound]);
 
-  // Display bus route shapes on map - only when following a vehicle
-  useEffect(() => {
-    if (!mapRef.current || !mapLoaded) return;
-
-    const source = mapRef.current.getSource('bus-shapes') as maplibregl.GeoJSONSource;
-    if (!source) return;
-
-    // Always start by clearing any existing shapes
-    source.setData({ type: 'FeatureCollection', features: [] });
-
-    // Exit early if no vehicle is being followed
-    if (!followedVehicleId) return;
-    
-    // Exit if we don't have the required data
-    if (!shapes || shapes.length === 0 || !tripMappings || tripMappings.length === 0) return;
-
-    // Find the followed vehicle
-    const followedVehicle = vehicles.find(v => v.id === followedVehicleId || v.vehicleId === followedVehicleId);
-    if (!followedVehicle?.routeId) return;
-
-    // Create route_id -> shape_ids mapping
-    const routeToShapes = new Map<string, Set<string>>();
-    const shapeToRoute = new Map<string, string>();
-    tripMappings.forEach(mapping => {
-      if (!routeToShapes.has(mapping.route_id)) {
-        routeToShapes.set(mapping.route_id, new Set());
-      }
-      routeToShapes.get(mapping.route_id)!.add(mapping.shape_id);
-      shapeToRoute.set(mapping.shape_id, mapping.route_id);
-    });
-
-    // Get shapes for the followed vehicle's route only
-    const shapesToShow = routeToShapes.get(followedVehicle.routeId);
-    if (!shapesToShow || shapesToShow.size === 0) return;
-
-    // Group shape points by shape_id and sort by sequence
-    const shapeGroups = new Map<string, { lat: number; lon: number; seq: number }[]>();
-    shapes.forEach(point => {
-      if (!shapesToShow.has(point.shape_id)) return;
-      
-      if (!shapeGroups.has(point.shape_id)) {
-        shapeGroups.set(point.shape_id, []);
-      }
-      shapeGroups.get(point.shape_id)!.push({
-        lat: point.shape_pt_lat,
-        lon: point.shape_pt_lon,
-        seq: point.shape_pt_sequence
-      });
-    });
-
-    // Create GeoJSON features for each shape with route color
-    const features: GeoJSON.Feature[] = [];
-    const routeInfo = routeNamesMap?.get(followedVehicle.routeId);
-    const color = routeInfo?.route_color ? `#${routeInfo.route_color}` : '#3b82f6';
-    const routeName = routeInfo?.route_short_name || followedVehicle.routeId || '';
-    const routeLongName = routeInfo?.route_long_name || '';
-
-    shapeGroups.forEach((points, shapeId) => {
-      // Sort by sequence
-      points.sort((a, b) => a.seq - b.seq);
-      
-      // Create LineString coordinates
-      const coordinates = points.map(p => [p.lon, p.lat]);
-      
-      if (coordinates.length > 1) {
-        features.push({
-          type: 'Feature',
-          properties: { 
-            shapeId,
-            routeId: followedVehicle.routeId,
-            color,
-            routeName,
-            routeLongName
-          },
-          geometry: {
-            type: 'LineString',
-            coordinates
-          }
-        });
-      }
-    });
-
-    source.setData({
-      type: 'FeatureCollection',
-      features
-    });
-  }, [shapes, tripMappings, mapLoaded, followedVehicleId, vehicles, routeNamesMap]);
+  // Bus route shapes - disabled for now
 
   // Handle map click for route planning
   useEffect(() => {
