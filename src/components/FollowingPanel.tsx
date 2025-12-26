@@ -238,7 +238,15 @@ export function FollowingPanel({
           {/* Vehicle Info */}
           <div className="flex items-center gap-2 flex-wrap text-sm">
             <span className="text-muted-foreground">Όχημα:</span>
-            <span className="font-semibold">{vehicle.label || vehicle.vehicleId || vehicle.id}</span>
+            <span className="font-semibold">
+              {vehicle.vehicleId || vehicle.id || vehicle.label}
+            </span>
+            {vehicle.licensePlate &&
+              vehicle.licensePlate !== (vehicle.vehicleId || vehicle.id || vehicle.label) && (
+                <span className="text-xs text-muted-foreground">
+                  ({vehicle.licensePlate})
+                </span>
+              )}
             {vehicle.speed !== undefined && (
               <span className="text-primary font-medium">{formatSpeed(vehicle.speed)}</span>
             )}
