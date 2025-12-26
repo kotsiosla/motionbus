@@ -753,39 +753,57 @@ export function RouteStopsPanel({
         </div>
       )}
 
-      {/* Resize handles */}
+      {/* Resize handles - more visible */}
       {!isMinimized && (
         <>
           {/* Right edge */}
           <div 
-            className="resize-handle absolute top-0 right-0 w-3 h-full cursor-e-resize hover:bg-primary/20 transition-colors touch-none"
+            className="resize-handle absolute top-0 right-0 w-4 h-full cursor-e-resize hover:bg-primary/30 active:bg-primary/40 transition-colors touch-none flex items-center justify-end pr-0.5"
             onMouseDown={(e) => handleResizeStart(e, 'e')}
             onTouchStart={(e) => handleResizeStart(e, 'e')}
-          />
+          >
+            <div className="w-1 h-12 rounded-full bg-muted-foreground/30 opacity-0 hover:opacity-100 transition-opacity" />
+          </div>
           {/* Bottom edge */}
           <div 
-            className="resize-handle absolute bottom-0 left-0 w-full h-3 cursor-s-resize hover:bg-primary/20 transition-colors touch-none"
+            className="resize-handle absolute bottom-0 left-0 w-full h-4 cursor-s-resize hover:bg-primary/30 active:bg-primary/40 transition-colors touch-none flex items-end justify-center pb-0.5"
             onMouseDown={(e) => handleResizeStart(e, 's')}
             onTouchStart={(e) => handleResizeStart(e, 's')}
-          />
+          >
+            <div className="w-12 h-1 rounded-full bg-muted-foreground/30 opacity-0 hover:opacity-100 transition-opacity" />
+          </div>
           {/* Left edge */}
           <div 
-            className="resize-handle absolute top-0 left-0 w-3 h-full cursor-w-resize hover:bg-primary/20 transition-colors touch-none"
+            className="resize-handle absolute top-0 left-0 w-4 h-full cursor-w-resize hover:bg-primary/30 active:bg-primary/40 transition-colors touch-none flex items-center justify-start pl-0.5"
             onMouseDown={(e) => handleResizeStart(e, 'w')}
             onTouchStart={(e) => handleResizeStart(e, 'w')}
-          />
-          {/* Bottom-right corner */}
+          >
+            <div className="w-1 h-12 rounded-full bg-muted-foreground/30 opacity-0 hover:opacity-100 transition-opacity" />
+          </div>
+          {/* Bottom-right corner - with visible grip */}
           <div 
-            className="resize-handle absolute bottom-0 right-0 w-5 h-5 cursor-se-resize hover:bg-primary/30 transition-colors rounded-tl touch-none"
+            className="resize-handle absolute bottom-0 right-0 w-6 h-6 cursor-se-resize hover:bg-primary/40 active:bg-primary/50 transition-colors rounded-tl touch-none flex items-center justify-center"
             onMouseDown={(e) => handleResizeStart(e, 'se')}
             onTouchStart={(e) => handleResizeStart(e, 'se')}
-          />
+          >
+            <svg className="w-3 h-3 text-muted-foreground/50" viewBox="0 0 10 10" fill="currentColor">
+              <circle cx="8" cy="8" r="1.5" />
+              <circle cx="4" cy="8" r="1.5" />
+              <circle cx="8" cy="4" r="1.5" />
+            </svg>
+          </div>
           {/* Bottom-left corner */}
           <div 
-            className="resize-handle absolute bottom-0 left-0 w-5 h-5 cursor-sw-resize hover:bg-primary/30 transition-colors rounded-tr touch-none"
+            className="resize-handle absolute bottom-0 left-0 w-6 h-6 cursor-sw-resize hover:bg-primary/40 active:bg-primary/50 transition-colors rounded-tr touch-none flex items-center justify-center"
             onMouseDown={(e) => handleResizeStart(e, 'sw')}
             onTouchStart={(e) => handleResizeStart(e, 'sw')}
-          />
+          >
+            <svg className="w-3 h-3 text-muted-foreground/50 transform scale-x-[-1]" viewBox="0 0 10 10" fill="currentColor">
+              <circle cx="8" cy="8" r="1.5" />
+              <circle cx="4" cy="8" r="1.5" />
+              <circle cx="8" cy="4" r="1.5" />
+            </svg>
+          </div>
         </>
       )}
     </div>
