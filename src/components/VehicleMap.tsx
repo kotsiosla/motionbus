@@ -807,6 +807,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     // Get stop IDs for the selected route from trips
     const routeStopIds = new Set<string>();
     if (selectedRoute && selectedRoute !== 'all') {
+      // First try to get stops from trips (realtime data)
       trips.forEach(trip => {
         if (trip.routeId === selectedRoute && trip.stopTimeUpdates) {
           trip.stopTimeUpdates.forEach(stu => {
@@ -816,6 +817,37 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           });
         }
       });
+      
+      // If no stops from trips, find stops near the route shape
+      if (routeStopIds.size === 0 && shapes.length > 0 && tripMappings.length > 0) {
+        // Get shape points for this route
+        const routeShapeIds = new Set<string>();
+        tripMappings.forEach(mapping => {
+          if (mapping.route_id === selectedRoute) {
+            routeShapeIds.add(mapping.shape_id);
+          }
+        });
+        
+        const routeShapePoints = shapes.filter(p => routeShapeIds.has(p.shape_id));
+        
+        // Find stops within 100m of any shape point
+        if (routeShapePoints.length > 0) {
+          stops.forEach(stop => {
+            if (stop.stop_lat === undefined || stop.stop_lon === undefined) return;
+            
+            for (const point of routeShapePoints) {
+              const distance = Math.sqrt(
+                Math.pow((stop.stop_lat - point.shape_pt_lat) * 111000, 2) +
+                Math.pow((stop.stop_lon - point.shape_pt_lon) * 111000 * Math.cos(stop.stop_lat * Math.PI / 180), 2)
+              );
+              if (distance < 100) { // 100 meters
+                routeStopIds.add(stop.stop_id);
+                break;
+              }
+            }
+          });
+        }
+      }
     }
 
     // Filter stops: if a route is selected, show only its stops; otherwise show all
@@ -895,7 +927,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
 
       stopMarkersRef.current.set(stop.stop_id, marker);
     });
-  }, [stops, showStops, stopsWithVehicles, getArrivalsForStop, favoriteStops, selectedRoute, trips]);
+  }, [stops, showStops, stopsWithVehicles, getArrivalsForStop, favoriteStops, selectedRoute, trips, shapes, tripMappings]);
 
   // Handle user location
   const locateUser = () => {
