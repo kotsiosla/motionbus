@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { Map as MapIcon, Route, MapPin, Bell } from "lucide-react";
+import { Map as MapIcon, Route, MapPin, Bell, Bus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { VehicleMap } from "@/components/VehicleMap";
@@ -102,9 +103,21 @@ const Index = () => {
   };
 
   const alertCount = alertsQuery.data?.data?.length || 0;
+  const vehicleCount = filteredVehicles.length;
+  const tripCount = filteredTrips.length;
+  const stopCount = staticStopsQuery.data?.data?.length || 0;
+  const routeCount = selectedRoute === "all" ? availableRoutes.length : 1;
+  const formattedLastUpdate = lastUpdate
+    ? new Date(lastUpdate).toLocaleTimeString("el-GR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })
+    : "—";
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background via-background to-muted/30">
       <Header
         isDark={isDark}
         onToggleTheme={() => setIsDark(!isDark)}
@@ -127,23 +140,19 @@ const Index = () => {
       {hasError && (
         <ErrorBanner message={errorMessage || "Αποτυχία σύνδεσης"} onRetry={handleRetry} />
       )}
-
-      <main className="flex-1 container mx-auto px-4 py-6 mt-2">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
-            <TabsTrigger value="map" className="flex items-center gap-2">
+main
               <MapIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Χάρτης</span>
             </TabsTrigger>
-            <TabsTrigger value="trips" className="flex items-center gap-2">
+            <TabsTrigger value="trips" className="flex items-center gap-2 rounded-full data-[state=active]:bg-background data-[state=active]:shadow">
               <Route className="h-4 w-4" />
               <span className="hidden sm:inline">Δρομολόγια</span>
             </TabsTrigger>
-            <TabsTrigger value="stops" className="flex items-center gap-2">
+            <TabsTrigger value="stops" className="flex items-center gap-2 rounded-full data-[state=active]:bg-background data-[state=active]:shadow">
               <MapPin className="h-4 w-4" />
               <span className="hidden sm:inline">Στάσεις</span>
             </TabsTrigger>
-            <TabsTrigger value="alerts" className="flex items-center gap-2 relative">
+            <TabsTrigger value="alerts" className="flex items-center gap-2 relative rounded-full data-[state=active]:bg-background data-[state=active]:shadow">
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">Ειδοποιήσεις</span>
               {alertCount > 0 && (
@@ -154,8 +163,8 @@ const Index = () => {
             </TabsTrigger>
           </TabsList>
 
-          <div className="flex-1 min-h-0 glass-card rounded-lg overflow-hidden">
-            <TabsContent value="map" className="h-[calc(100vh-220px)] m-0">
+          <div className="flex-1 min-h-[520px] glass-card rounded-2xl overflow-hidden">
+            <TabsContent value="map" className="h-full m-0">
               <VehicleMap
                 vehicles={filteredVehicles}
                 trips={filteredTrips}
@@ -168,7 +177,7 @@ const Index = () => {
               />
             </TabsContent>
 
-            <TabsContent value="trips" className="h-[calc(100vh-220px)] m-0">
+            <TabsContent value="trips" className="h-full m-0">
               <TripsTable
                 trips={filteredTrips}
                 isLoading={tripsQuery.isLoading}
@@ -176,14 +185,14 @@ const Index = () => {
               />
             </TabsContent>
 
-            <TabsContent value="stops" className="h-[calc(100vh-220px)] m-0">
+            <TabsContent value="stops" className="h-full m-0">
               <StopsView
                 trips={filteredTrips}
                 isLoading={tripsQuery.isLoading}
               />
             </TabsContent>
 
-            <TabsContent value="alerts" className="h-[calc(100vh-220px)] m-0 overflow-auto">
+            <TabsContent value="alerts" className="h-full m-0 overflow-auto">
               <AlertsList
                 alerts={alertsQuery.data?.data || []}
                 isLoading={alertsQuery.isLoading}

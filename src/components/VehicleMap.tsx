@@ -379,6 +379,16 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       bearing: 0,
       maxPitch: 70,
     });
+    const debugMap = mapRef.current as maplibregl.Map & {
+      showTileBoundaries?: boolean;
+      showCollisionBoxes?: boolean;
+      showPadding?: boolean;
+      showOverdrawInspector?: boolean;
+    };
+    debugMap.showTileBoundaries = false;
+    debugMap.showCollisionBoxes = false;
+    debugMap.showPadding = false;
+    debugMap.showOverdrawInspector = false;
 
     // Add navigation controls
     mapRef.current.addControl(new maplibregl.NavigationControl({
