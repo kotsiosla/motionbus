@@ -116,6 +116,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
   const shapesSourceRef = useRef<boolean>(false);
   const notifiedArrivalsRef = useRef<Set<string>>(new Set());
   const audioContextRef = useRef<AudioContext | null>(null);
+  const walkingRouteRef = useRef<boolean>(false);
   
   const [followedVehicleId, setFollowedVehicleId] = useState<string | null>(null);
   const [showStops, setShowStops] = useState(false);
@@ -1355,16 +1356,69 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
               highlightedMarkerRef.current.remove();
               highlightedMarkerRef.current = null;
             }
+            
+            // Remove previous walking route
+            if (mapRef.current && walkingRouteRef.current) {
+              if (mapRef.current.getLayer('walking-route-line')) {
+                mapRef.current.removeLayer('walking-route-line');
+              }
+              if (mapRef.current.getLayer('walking-route-dots')) {
+                mapRef.current.removeLayer('walking-route-dots');
+              }
+              if (mapRef.current.getSource('walking-route')) {
+                mapRef.current.removeSource('walking-route');
+              }
+              walkingRouteRef.current = false;
+            }
+            
             setHighlightedStopId(stopId);
             
-            // Create highlighted marker on map
+            // Create highlighted marker on map with popup
             if (stopId && mapRef.current) {
               const stop = stops.find(s => s.stop_id === stopId);
               if (stop?.stop_lat && stop?.stop_lon) {
+                const arrivals = getArrivalsForStop(stopId);
+                const routeInfo = selectedRoute ? routeNamesMap?.get(selectedRoute) : null;
+                const routeColor = routeInfo?.route_color ? `#${routeInfo.route_color}` : '#06b6d4';
+                
+                // Calculate distance and walking time from user
+                let distanceText = '';
+                let walkingTimeText = '';
+                if (userLocation) {
+                  const distance = Math.sqrt(
+                    Math.pow((stop.stop_lat - userLocation.lat) * 111000, 2) +
+                    Math.pow((stop.stop_lon - userLocation.lng) * 111000 * Math.cos(stop.stop_lat * Math.PI / 180), 2)
+                  );
+                  distanceText = distance < 1000 
+                    ? `${Math.round(distance)} μ` 
+                    : `${(distance / 1000).toFixed(1)} χλμ`;
+                  const walkingMinutes = Math.round(distance / 80); // ~80m per minute walking
+                  walkingTimeText = walkingMinutes < 1 ? '< 1 λεπτό' : `${walkingMinutes} λεπτά`;
+                }
+                
+                // Build arrivals HTML
+                let arrivalsHtml = '';
+                if (arrivals.length > 0) {
+                  arrivalsHtml = `
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                      <div style="font-weight: 500; font-size: 11px; margin-bottom: 6px; color: #a5b4fc;">Επόμενες αφίξεις</div>
+                      ${arrivals.slice(0, 3).map(arr => {
+                        const arrRouteColor = arr.routeColor ? `#${arr.routeColor}` : '#06b6d4';
+                        return `
+                          <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 4px 6px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 4px;">
+                            <span style="font-weight: 700; padding: 2px 6px; border-radius: 4px; color: white; font-size: 10px; background: ${arrRouteColor};">${arr.routeShortName || '?'}</span>
+                            <span style="font-family: monospace; color: #22d3ee; font-weight: 600;">${formatETA(arr.arrivalTime)}</span>
+                          </div>
+                        `;
+                      }).join('')}
+                    </div>
+                  `;
+                }
+                
                 const el = document.createElement('div');
                 el.className = 'highlighted-stop-marker';
                 el.innerHTML = `
-                  <div style="position: relative;">
+                  <div style="position: relative; cursor: pointer;">
                     <div style="position: absolute; inset: -8px; background: rgba(6, 182, 212, 0.3); border-radius: 50%; animation: ping 1.5s infinite;"></div>
                     <div style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #06b6d4; border: 3px solid white; box-shadow: 0 0 20px rgba(6, 182, 212, 0.8), 0 4px 12px rgba(0,0,0,0.3);">
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -1374,9 +1428,98 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
                   </div>
                 `;
                 
+                const popup = new maplibregl.Popup({ 
+                  offset: 20, 
+                  className: 'highlighted-stop-popup',
+                  maxWidth: 'none'
+                }).setHTML(`
+                  <div style="padding: 12px; min-width: 200px; max-width: 280px; font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #0e7490 0%, #0891b2 100%); color: white; border-radius: 12px;">
+                    <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                      <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #22d3ee; box-shadow: 0 0 8px #22d3ee;"></span>
+                      ${stop.stop_name || 'Στάση'}
+                    </div>
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.8); background: rgba(0,0,0,0.2); padding: 6px 8px; border-radius: 6px; margin-bottom: 8px;">
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+                        <span>ID:</span>
+                        <span style="font-family: monospace;">${stop.stop_id}</span>
+                      </div>
+                      ${stop.stop_code ? `<div style="display: flex; justify-content: space-between;"><span>Κωδικός:</span><span style="font-family: monospace;">${stop.stop_code}</span></div>` : ''}
+                    </div>
+                    ${userLocation ? `
+                      <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <div style="flex: 1; background: rgba(0,0,0,0.2); padding: 6px 8px; border-radius: 6px; text-align: center;">
+                          <div style="font-size: 10px; opacity: 0.8;">Απόσταση</div>
+                          <div style="font-weight: 600; font-size: 13px;">${distanceText}</div>
+                        </div>
+                        <div style="flex: 1; background: rgba(0,0,0,0.2); padding: 6px 8px; border-radius: 6px; text-align: center;">
+                          <div style="font-size: 10px; opacity: 0.8;">🚶 Περπάτημα</div>
+                          <div style="font-weight: 600; font-size: 13px;">${walkingTimeText}</div>
+                        </div>
+                      </div>
+                    ` : ''}
+                    ${arrivalsHtml}
+                  </div>
+                `);
+                
                 highlightedMarkerRef.current = new maplibregl.Marker({ element: el })
                   .setLngLat([stop.stop_lon, stop.stop_lat])
+                  .setPopup(popup)
                   .addTo(mapRef.current);
+                
+                // Show popup automatically
+                highlightedMarkerRef.current.togglePopup();
+                
+                // Draw walking route if user location is available
+                if (userLocation && mapRef.current) {
+                  const walkingRoute: [number, number][] = [
+                    [userLocation.lng, userLocation.lat],
+                    [stop.stop_lon, stop.stop_lat]
+                  ];
+                  
+                  // Add walking route source and layer
+                  if (!mapRef.current.getSource('walking-route')) {
+                    mapRef.current.addSource('walking-route', {
+                      type: 'geojson',
+                      data: {
+                        type: 'Feature',
+                        properties: {},
+                        geometry: {
+                          type: 'LineString',
+                          coordinates: walkingRoute
+                        }
+                      }
+                    });
+                    
+                    // Dashed line for walking route
+                    mapRef.current.addLayer({
+                      id: 'walking-route-line',
+                      type: 'line',
+                      source: 'walking-route',
+                      layout: {
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                      },
+                      paint: {
+                        'line-color': '#06b6d4',
+                        'line-width': 4,
+                        'line-dasharray': [2, 2]
+                      }
+                    });
+                    
+                    // Animated dots along the route
+                    mapRef.current.addLayer({
+                      id: 'walking-route-dots',
+                      type: 'circle',
+                      source: 'walking-route',
+                      paint: {
+                        'circle-radius': 3,
+                        'circle-color': '#22d3ee'
+                      }
+                    });
+                    
+                    walkingRouteRef.current = true;
+                  }
+                }
               }
             }
           }}
@@ -1386,6 +1529,19 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
             if (highlightedMarkerRef.current) {
               highlightedMarkerRef.current.remove();
               highlightedMarkerRef.current = null;
+            }
+            // Remove walking route
+            if (mapRef.current && walkingRouteRef.current) {
+              if (mapRef.current.getLayer('walking-route-line')) {
+                mapRef.current.removeLayer('walking-route-line');
+              }
+              if (mapRef.current.getLayer('walking-route-dots')) {
+                mapRef.current.removeLayer('walking-route-dots');
+              }
+              if (mapRef.current.getSource('walking-route')) {
+                mapRef.current.removeSource('walking-route');
+              }
+              walkingRouteRef.current = false;
             }
             setHighlightedStopId(null);
           }}
