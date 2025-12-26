@@ -657,7 +657,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
             type: 'raster',
             source: 'satellite',
             minzoom: 0,
-            maxzoom: 22
+            maxzoom: 22,
+            paint: {
+              'raster-resampling': 'nearest',
+              'raster-fade-duration': 0
+            }
           }
         ]
       },
