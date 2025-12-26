@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Star, Heart, Route, Box, Layers, Home } from "lucide-react";
+import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Star, Heart, Route, Box, Layers, Home, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -1268,7 +1268,32 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
         <Home className="h-4 w-4" />
       </Button>
 
-      {/* Nearby stops panel */}
+      {/* Zoom In button */}
+      <Button
+        variant="secondary"
+        size="icon"
+        className="absolute top-[23rem] right-4 z-[1000] glass-card h-9 w-9"
+        onClick={() => {
+          mapRef.current?.zoomIn({ duration: 300 });
+        }}
+        title="Μεγέθυνση"
+      >
+        <ZoomIn className="h-4 w-4" />
+      </Button>
+
+      {/* Zoom Out button */}
+      <Button
+        variant="secondary"
+        size="icon"
+        className="absolute top-[26rem] right-4 z-[1000] glass-card h-9 w-9"
+        onClick={() => {
+          mapRef.current?.zoomOut({ duration: 300 });
+        }}
+        title="Σμίκρυνση"
+      >
+        <ZoomOut className="h-4 w-4" />
+      </Button>
+
       {userLocation && nearbyStops.length > 0 && showNearbyPanel && (
         <div className="absolute bottom-4 right-4 glass-card rounded-lg p-3 z-[1000] max-w-[300px] max-h-[60vh] overflow-hidden flex flex-col">
           {/* Header with close button */}
