@@ -85,40 +85,58 @@ const createVehicleElement = (bearing?: number, isFollowed?: boolean, routeColor
 };
 
 // Create stop marker element
-const createStopElement = (hasVehicleStopped?: boolean, isFavorite?: boolean, stopType?: 'first' | 'last' | 'normal') => {
+const createStopElement = (hasVehicleStopped?: boolean, isFavorite?: boolean, stopType?: 'first' | 'last' | 'normal', sequenceNumber?: number) => {
   const el = document.createElement('div');
   el.className = 'stop-marker-maplibre';
   
   // Priority: vehicle stopped (green) > first stop (green) > last stop (red) > favorite (pink) > normal (orange)
   let bgColor = '#f97316'; // normal orange
-  let size = 20;
-  let icon = '<circle cx="12" cy="12" r="3"/>';
+  let size = sequenceNumber !== undefined ? 24 : 20; // Slightly larger when showing number
   
   if (hasVehicleStopped) {
     bgColor = '#22c55e';
-    icon = '<rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="7" cy="18" r="1.5" fill="white"/><circle cx="17" cy="18" r="1.5" fill="white"/>';
   } else if (stopType === 'first') {
     bgColor = '#10b981'; // emerald green for start
-    size = 26;
-    icon = '<polygon points="5 3 19 12 5 21 5 3" fill="white" stroke="none"/>'; // play icon
+    size = 28;
   } else if (stopType === 'last') {
     bgColor = '#ef4444'; // red for end
-    size = 26;
-    icon = '<rect x="6" y="6" width="12" height="12" rx="2" fill="white" stroke="none"/>'; // stop icon
+    size = 28;
   } else if (isFavorite) {
     bgColor = '#ec4899';
-    icon = '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>';
   }
   
   const glowEffect = (stopType === 'first' || stopType === 'last') ? `, 0 0 12px ${bgColor}` : (isFavorite ? `, 0 0 8px ${bgColor}` : '');
   
-  el.innerHTML = `
-    <div style="width: ${size}px; height: ${size}px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${bgColor}; border: ${size > 20 ? 3 : 2}px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3)${glowEffect};">
-      <svg xmlns="http://www.w3.org/2000/svg" width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        ${icon}
-      </svg>
-    </div>
-  `;
+  // Show sequence number if provided, otherwise show icon
+  if (sequenceNumber !== undefined) {
+    const fontSize = size > 24 ? 12 : 10;
+    el.innerHTML = `
+      <div style="width: ${size}px; height: ${size}px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${bgColor}; border: ${size > 24 ? 3 : 2}px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3)${glowEffect};">
+        <span style="color: white; font-weight: 700; font-size: ${fontSize}px; font-family: system-ui, -apple-system, sans-serif; line-height: 1;">
+          ${sequenceNumber}
+        </span>
+      </div>
+    `;
+  } else {
+    let icon = '<circle cx="12" cy="12" r="3"/>';
+    if (hasVehicleStopped) {
+      icon = '<rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="7" cy="18" r="1.5" fill="white"/><circle cx="17" cy="18" r="1.5" fill="white"/>';
+    } else if (stopType === 'first') {
+      icon = '<polygon points="5 3 19 12 5 21 5 3" fill="white" stroke="none"/>';
+    } else if (stopType === 'last') {
+      icon = '<rect x="6" y="6" width="12" height="12" rx="2" fill="white" stroke="none"/>';
+    } else if (isFavorite) {
+      icon = '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>';
+    }
+    
+    el.innerHTML = `
+      <div style="width: ${size}px; height: ${size}px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: ${bgColor}; border: ${size > 24 ? 3 : 2}px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3)${glowEffect};">
+        <svg xmlns="http://www.w3.org/2000/svg" width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          ${icon}
+        </svg>
+      </div>
+    `;
+  }
   
   return el;
 };
@@ -1112,6 +1130,27 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       }
     }
 
+    // Build stop sequence map for route stops
+    const stopSequenceMap = new Map<string, number>();
+    if (selectedRoute && selectedRoute !== 'all') {
+      const routeTrips = trips.filter(t => t.routeId === selectedRoute && t.stopTimeUpdates?.length > 0);
+      if (routeTrips.length > 0) {
+        const bestTrip = routeTrips.reduce((a, b) => 
+          (a.stopTimeUpdates?.length || 0) > (b.stopTimeUpdates?.length || 0) ? a : b
+        );
+        if (bestTrip.stopTimeUpdates) {
+          const sortedUpdates = [...bestTrip.stopTimeUpdates].sort((a, b) => 
+            (a.stopSequence || 0) - (b.stopSequence || 0)
+          );
+          sortedUpdates.forEach((stu, index) => {
+            if (stu.stopId) {
+              stopSequenceMap.set(stu.stopId, index + 1);
+            }
+          });
+        }
+      }
+    }
+
     // Filter stops: if a route is selected, show only its stops; otherwise show all
     const validStops = stops.filter((s) => {
       if (s.stop_lat === undefined || s.stop_lon === undefined) return false;
@@ -1135,7 +1174,10 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
         stopType = 'last';
       }
       
-      const el = createStopElement(hasVehicleStopped, isFavorite, stopType);
+      // Get sequence number for this stop (only when a route is selected)
+      const sequenceNumber = selectedRoute && selectedRoute !== 'all' ? stopSequenceMap.get(stop.stop_id) : undefined;
+      
+      const el = createStopElement(hasVehicleStopped, isFavorite, stopType, sequenceNumber);
 
       const statusColor = hasVehicleStopped ? '#22c55e' : stopType === 'first' ? '#10b981' : stopType === 'last' ? '#ef4444' : '#f97316';
       const statusText = hasVehicleStopped ? '<div style="color: #22c55e; font-weight: 500; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e5e5;">🚌 Λεωφορείο στη στάση</div>' : '';
