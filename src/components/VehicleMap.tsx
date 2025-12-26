@@ -528,20 +528,16 @@ export function VehicleMap({
       }
     }
   }, [isNightMode, mapLoaded]);
-
   useEffect(() => {
     if (!mapRef.current || !containerRef.current || !isActive) return;
-
     const map = mapRef.current;
     const container = containerRef.current;
     let rafId: number | null = null;
     let timeoutId: number | null = null;
-
     const resize = () => {
       rafId = null;
       map.resize();
     };
-
     const scheduleResize = () => {
       if (!isActive) return;
       const { width, height } = container.getBoundingClientRect();
@@ -1209,6 +1205,7 @@ export function VehicleMap({
   return (
     <div className="relative h-full w-full rounded-lg overflow-hidden">
       <div ref={containerRef} className="h-full w-full" />
+      <div ref={containerRef} className="absolute inset-0 z-0" />
       <div className="absolute inset-0 z-10 pointer-events-none">
         <div className="pointer-events-auto">
           {/* Route Planner */}
