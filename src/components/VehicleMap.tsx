@@ -395,8 +395,21 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           data: { type: 'FeatureCollection', features: [] }
         });
 
-        // Bus route shape layer - currently disabled to debug line issue
-        // Will be re-enabled when we fix the shapes rendering
+        // Add bus route shape layer
+        mapRef.current.addLayer({
+          id: 'bus-shapes-layer',
+          type: 'line',
+          source: 'bus-shapes',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': 4,
+            'line-opacity': 0.8
+          }
+        });
 
         shapesSourceRef.current = true;
 
@@ -487,6 +500,76 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
       }
     }
   }, [isNightMode, mapLoaded]);
+
+  // Update route shapes when selected route changes
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded || !shapesSourceRef.current) return;
+    
+    const map = mapRef.current;
+    const source = map.getSource('bus-shapes') as maplibregl.GeoJSONSource;
+    if (!source) return;
+
+    // If no route selected or "all" selected, clear shapes
+    if (!selectedRoute || selectedRoute === 'all') {
+      source.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+
+    // Find shape_ids for the selected route using tripMappings
+    const routeShapeIds = new Set<string>();
+    tripMappings.forEach(mapping => {
+      if (mapping.route_id === selectedRoute) {
+        routeShapeIds.add(mapping.shape_id);
+      }
+    });
+
+    // If no shapes found for this route, clear
+    if (routeShapeIds.size === 0) {
+      source.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+
+    // Group shape points by shape_id
+    const shapePointsMap = new Map<string, ShapePoint[]>();
+    shapes.forEach(point => {
+      if (routeShapeIds.has(point.shape_id)) {
+        if (!shapePointsMap.has(point.shape_id)) {
+          shapePointsMap.set(point.shape_id, []);
+        }
+        shapePointsMap.get(point.shape_id)!.push(point);
+      }
+    });
+
+    // Get route color
+    const routeInfo = routeNamesMap?.get(selectedRoute);
+    const routeColor = routeInfo?.route_color ? `#${routeInfo.route_color}` : '#3b82f6';
+
+    // Create GeoJSON features
+    const features: GeoJSON.Feature[] = [];
+    shapePointsMap.forEach((points, shapeId) => {
+      // Sort by sequence
+      points.sort((a, b) => a.shape_pt_sequence - b.shape_pt_sequence);
+      
+      // Create line coordinates
+      const coordinates = points.map(p => [p.shape_pt_lon, p.shape_pt_lat]);
+      
+      if (coordinates.length >= 2) {
+        features.push({
+          type: 'Feature',
+          properties: { 
+            shape_id: shapeId,
+            color: routeColor
+          },
+          geometry: {
+            type: 'LineString',
+            coordinates
+          }
+        });
+      }
+    });
+
+    source.setData({ type: 'FeatureCollection', features });
+  }, [selectedRoute, shapes, tripMappings, routeNamesMap, mapLoaded]);
 
   // Get stops with vehicles currently stopped
   const stopsWithVehicles = useMemo(() => {
