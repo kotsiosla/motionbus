@@ -645,10 +645,10 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
           'satellite': {
             type: 'raster',
             tiles: [
-              'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
+              'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
             ],
             tileSize: 256,
-            attribution: 'Map data © Google'
+            attribution: 'Map data © Esri'
           }
         },
         layers: [
@@ -739,35 +739,40 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
 
     // Add or update dark base layers for night mode
     if (isNightMode) {
-      // Add dark tiles source if not exists
-      if (!map.getSource('carto-dark')) {
-        map.addSource('carto-dark', {
-          type: 'raster',
-          tiles: [
-            'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-            'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-            'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
-          ],
-          tileSize: 256,
-          attribution: '© CartoDB © OpenStreetMap'
+      // Add simple dark background source if not exists
+      if (!map.getSource('dark-background')) {
+        map.addSource('dark-background', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: [{
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'Polygon',
+                coordinates: [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]]
+              }
+            }]
+          }
         });
       }
 
-      // Add dark layer if not exists
-      if (!map.getLayer('carto-dark-layer')) {
+      // Add dark background layer if not exists
+      if (!map.getLayer('dark-background-layer')) {
         map.addLayer({
-          id: 'carto-dark-layer',
-          type: 'raster',
-          source: 'carto-dark',
-          minzoom: 0,
-          maxzoom: 22
-        });
+          id: 'dark-background-layer',
+          type: 'fill',
+          source: 'dark-background',
+          paint: {
+            'fill-color': '#0f172a'
+          }
+        }, 'satellite-layer'); // Insert below satellite
       }
-      map.setLayoutProperty('carto-dark-layer', 'visibility', 'visible');
+      map.setLayoutProperty('dark-background-layer', 'visibility', 'visible');
     } else {
       // Hide dark layer if exists
-      if (map.getLayer('carto-dark-layer')) {
-        map.setLayoutProperty('carto-dark-layer', 'visibility', 'none');
+      if (map.getLayer('dark-background-layer')) {
+        map.setLayoutProperty('dark-background-layer', 'visibility', 'none');
       }
     }
   }, [isNightMode, mapLoaded]);
