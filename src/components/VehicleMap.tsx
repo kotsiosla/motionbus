@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Vehicle, StaticStop, Trip, RouteInfo, ShapePoint, TripShapeMapping } from "@/types/gtfs";
 import { useTransitRouting } from "@/hooks/useTransitRouting";
 import { RoutePlanner } from "@/components/RoutePlanner";
-
+import { RouteStopsPanel } from "@/components/RouteStopsPanel";
 interface VehicleMapProps {
   vehicles: Vehicle[];
   trips?: Trip[];
@@ -145,6 +145,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
   const [showStopsControl, setShowStopsControl] = useState(true);
   const [is3DMode, setIs3DMode] = useState(false);
   const [selectingMode, setSelectingMode] = useState<'origin' | 'destination' | null>(null);
+  const [showRouteStopsPanel, setShowRouteStopsPanel] = useState(true);
 
   // Initialize transit routing hook
   const routesArray = useMemo(() => 
@@ -169,7 +170,13 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
     }
   }, [favoriteStops]);
 
-  // Toggle favorite stop
+  // Show route stops panel when route changes
+  useEffect(() => {
+    if (selectedRoute && selectedRoute !== 'all') {
+      setShowRouteStopsPanel(true);
+    }
+  }, [selectedRoute]);
+
   const toggleFavorite = useCallback((stopId: string) => {
     setFavoriteStops(prev => {
       const newSet = new Set(prev);
@@ -1329,7 +1336,27 @@ export function VehicleMap({ vehicles, trips = [], stops = [], shapes = [], trip
         </Label>
       </div>
 
-      {/* Night mode button */}
+      {/* Route Stops Panel - Metro style */}
+      {selectedRoute && selectedRoute !== 'all' && showRouteStopsPanel && (
+        <RouteStopsPanel
+          selectedRoute={selectedRoute}
+          routeInfo={routeNamesMap?.get(selectedRoute)}
+          trips={trips}
+          stops={stops}
+          shapes={shapes}
+          tripMappings={tripMappings}
+          onClose={() => setShowRouteStopsPanel(false)}
+          onStopClick={(stopId, lat, lon) => {
+            mapRef.current?.flyTo({
+              center: [lon, lat],
+              zoom: 17,
+              duration: 500
+            });
+            setShowStops(true);
+          }}
+        />
+      )}
+
       <Button
         variant="secondary"
         size="icon"
