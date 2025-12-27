@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { RouteStopsPanel } from "@/components/RouteStopsPanel";
 import type { Vehicle, StaticStop, Trip, RouteInfo } from "@/types/gtfs";
 
 interface VehicleMapProps {
@@ -16,6 +17,8 @@ interface VehicleMapProps {
   trips?: Trip[];
   stops?: StaticStop[];
   routeNamesMap?: Map<string, RouteInfo>;
+  selectedRoute?: string;
+  onRouteClose?: () => void;
   isLoading: boolean;
 }
 
@@ -101,13 +104,14 @@ const formatDelay = (delay?: number) => {
   return `(${minutes} λεπτά)`;
 };
 
-export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, isLoading }: VehicleMapProps) {
+export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, selectedRoute = 'all', onRouteClose, isLoading }: VehicleMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const vehicleMarkersRef = useRef<L.MarkerClusterGroup | null>(null);
   const stopMarkersRef = useRef<L.MarkerClusterGroup | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [followedVehicleId, setFollowedVehicleId] = useState<string | null>(null);
   const [showStops, setShowStops] = useState(true);
+  const [showRoutePanel, setShowRoutePanel] = useState(true);
   const markerMapRef = useRef<Map<string, L.Marker>>(new Map());
   const userLocationMarkerRef = useRef<L.Marker | null>(null);
   const [isLocating, setIsLocating] = useState(false);
@@ -118,6 +122,13 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const [searchResults, setSearchResults] = useState<Array<{ display_name: string; lat: string; lon: string }>>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // Show route panel when route changes
+  useEffect(() => {
+    if (selectedRoute !== 'all') {
+      setShowRoutePanel(true);
+    }
+  }, [selectedRoute]);
 
   // Geocoding search function
   const searchAddress = useCallback(async (query: string) => {
@@ -627,9 +638,36 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
 
   const followedNextStop = followedVehicle ? getNextStopInfo(followedVehicle) : null;
 
+  // Get route info for the selected route
+  const selectedRouteInfo = selectedRoute !== 'all' && routeNamesMap 
+    ? routeNamesMap.get(selectedRoute) 
+    : undefined;
+
+  // Handle clicking a stop in the panel - pan to it on the map
+  const handleStopClick = useCallback((stopId: string) => {
+    const stop = stops.find(s => s.stop_id === stopId);
+    if (stop && stop.stop_lat && stop.stop_lon && mapRef.current) {
+      mapRef.current.setView([stop.stop_lat, stop.stop_lon], 17, { animate: true });
+    }
+  }, [stops]);
+
   return (
     <div className="relative h-full w-full rounded-lg overflow-hidden">
       <div ref={containerRef} className="h-full w-full" />
+      
+      {/* Route Stops Panel */}
+      {showRoutePanel && selectedRoute !== 'all' && (
+        <RouteStopsPanel
+          selectedRoute={selectedRoute}
+          trips={trips}
+          vehicles={vehicles}
+          stops={stops}
+          routeInfo={selectedRouteInfo}
+          onClose={() => setShowRoutePanel(false)}
+          onStopClick={handleStopClick}
+        />
+      )}
+      
       {isLoading && (
         <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center">
           <div className="flex items-center gap-2 text-muted-foreground">
