@@ -159,6 +159,8 @@ const Index = () => {
                 trips={filteredTrips}
                 stops={staticStopsQuery.data?.data || []}
                 routeNamesMap={routeNamesMap}
+                selectedRoute={selectedRoute}
+                onRouteClose={() => setSelectedRoute('all')}
                 isLoading={vehiclesQuery.isLoading}
               />
             </TabsContent>
