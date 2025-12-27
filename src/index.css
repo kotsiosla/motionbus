@@ -263,3 +263,29 @@
   max-width: 320px !important;
   min-width: 280px !important;
 }
+
+.bus-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform: translateY(-6px);
+}
+
+.bus-marker__dot {
+  background: hsl(var(--primary));
+  border-radius: 999px;
+  padding: 6px 8px;
+  color: hsl(var(--primary-foreground));
+  font-size: 14px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.25);
+}
+
+.bus-marker__label {
+  background: rgba(15, 23, 42, 0.75);
+  color: white;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}

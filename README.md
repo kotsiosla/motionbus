@@ -1,73 +1,45 @@
-# Welcome to your Lovable project
+# Motionbus GTFS-RT Live Map (Cyprus)
 
-## Project info
+Live bus map built with Vite + React + MapLibre, backed by a Node/Express proxy for GTFS-Realtime.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Prerequisites
 
-## How can I edit this code?
+- Node.js >= 18
+- npm (bundled with Node)
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Install
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+npm install
+npm --prefix server install
 ```
 
-**Edit a file directly in GitHub**
+Or run the combined script:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm run install:all
+```
 
-**Use GitHub Codespaces**
+## Run (dev)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```sh
+npm run dev:all
+```
 
-## What technologies are used for this project?
+This starts:
+- Vite dev server at `http://localhost:5173`
+- GTFS-RT proxy at `http://localhost:5174/gtfsrt/vehicle-positions`
 
-This project is built with:
+## Environment
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The proxy supports a production feed URL via `FEED_URL`.
 
-## How can I deploy this project?
+```sh
+FEED_URL="http://20.19.98.194:8328/Api/api/gtfs-realtime"
+```
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Troubleshooting
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- **Ports already in use**: Ensure nothing else is using `5173` or `5174`, or change the ports before running.
+- **CORS or fetch errors**: Confirm the proxy is running and the frontend is calling `http://localhost:5174/gtfsrt/vehicle-positions`.
+- **Install issues**: Remove `node_modules` and reinstall using `npm run install:all`.
