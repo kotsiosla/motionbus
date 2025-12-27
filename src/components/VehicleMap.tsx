@@ -117,12 +117,13 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const mapboxLayerRef = useRef<L.TileLayer | null>(null);
   const fallbackLayerRef = useRef<L.TileLayer | null>(null);
   const envMapboxToken = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined)?.trim();
-  const mapboxToken = runtimeMapboxToken || envMapboxToken;
+  const fallbackMapboxToken = 'pk.eyJ1Ijoia290c2lvc2xhIiwiYSI6ImNtam8zajB6NzNiMzgzaHF4aWR2ZzhsZHcifQ.5FBnJ5rlFmxTBxifyHT5ew';
+  const mapboxToken = runtimeMapboxToken || envMapboxToken || fallbackMapboxToken;
   const mapboxTokenSource = runtimeMapboxToken
     ? runtimeTokenSource
     : envMapboxToken
       ? 'env'
-      : null;
+      : 'default';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
