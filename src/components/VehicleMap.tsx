@@ -113,6 +113,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const mapboxToken = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined)?.trim();
+  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
   // Create a map of tripId -> Trip for quick lookup
   const tripMap = useMemo(() => {
@@ -214,21 +215,14 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     if (!mapboxToken) {
       console.warn('Mapbox token is missing. Set VITE_MAPBOX_TOKEN in your .env file.');
     }
-
-    const mapboxLayer = L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+    L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
       attribution:
         '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       id: 'mapbox/satellite-streets-v12',
       tileSize: 512,
       zoomOffset: -1,
       accessToken: mapboxToken ?? '',
-    });
-
-    mapboxLayer.on('tileerror', (event) => {
-      console.error('Mapbox tile failed to load. Check your token and network.', event);
-    });
-
-    mapboxLayer.addTo(mapRef.current);
+    }).addTo(mapRef.current);
 
     vehicleMarkersRef.current = L.markerClusterGroup({
       chunkedLoading: true,
