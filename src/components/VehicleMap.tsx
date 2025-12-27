@@ -213,6 +213,18 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     });
 
     if (!mapboxToken) {
+      const message = 'Λείπει το Mapbox token. Βάλε VITE_MAPBOX_TOKEN στο .env και κάνε restart.';
+      console.warn(message);
+      setMapboxError(message);
+    } else if (!mapboxToken.startsWith('pk.')) {
+      const message = 'Το Mapbox token πρέπει να είναι public (να ξεκινά με "pk.").';
+      console.warn(message);
+      setMapboxError(message);
+    } else {
+      setMapboxError(null);
+    }
+
+    const mapboxLayer = L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
       console.warn('Mapbox token is missing. Set VITE_MAPBOX_TOKEN in your .env file.');
     }
     L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
@@ -222,6 +234,15 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       tileSize: 512,
       zoomOffset: -1,
       accessToken: mapboxToken ?? '',
+    });
+
+    mapboxLayer.on('tileerror', (event) => {
+      const message = 'Mapbox tiles δεν φορτώνουν. Έλεγξε token/δικαιώματα ή δίκτυο.';
+      console.error(message, event);
+      setMapboxError(message);
+    });
+
+    mapboxLayer.addTo(mapRef.current);
     }).addTo(mapRef.current);
 
     vehicleMarkersRef.current = L.markerClusterGroup({
