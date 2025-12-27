@@ -437,9 +437,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, se
   const stopsWithVehicles = useMemo(() => {
     const stoppedAtStops = new Set<string>();
     vehicles.forEach(v => {
-      // STOPPED_AT status is typically "1" or "STOPPED_AT" in GTFS-RT
+      // Check for STOPPED_AT status OR if vehicle has stopId and speed is 0 (stopped)
       const status = String(v.currentStatus);
-      if (v.stopId && (status === 'STOPPED_AT' || status === '1')) {
+      const isStopped = status === 'STOPPED_AT' || status === '1' || 
+        (v.stopId && v.speed !== undefined && v.speed < 1);
+      if (v.stopId && isStopped) {
         stoppedAtStops.add(v.stopId);
       }
     });
