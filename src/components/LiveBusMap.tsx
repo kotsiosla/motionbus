@@ -205,7 +205,7 @@ export const LiveBusMap = () => {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
         <div>
-          <h1 className="text-xl font-semibold">Cyprus Live Bus Map</h1>
+          <h1 className="text-xl font-semibold">GTFS Cyprus Buses</h1>
           <p className="text-sm text-muted-foreground">
             Live GTFS-RT vehicle positions refreshed every 5 seconds.
           </p>
