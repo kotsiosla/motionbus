@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Star, Heart, Route } from "lucide-react";
+import { X, Navigation, MapPin, Clock, LocateFixed, Moon, Sun, Bell, BellOff, Volume2, VolumeX, Star, Heart, Route, Satellite, Map as MapIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -149,6 +149,7 @@ export function VehicleMap({
   const [showFavorites, setShowFavorites] = useState(false);
   const [showRoutePlanner, setShowRoutePlanner] = useState(false);
   const [selectingMode, setSelectingMode] = useState<'origin' | 'destination' | null>(null);
+  const [isSatelliteView, setIsSatelliteView] = useState(false);
 
   // Initialize transit routing hook
   const routesArray = useMemo(() => 
@@ -459,97 +460,107 @@ export function VehicleMap({
     };
   }, []);
 
-  // Handle night mode toggle - reload map with new style
+  // Handle basemap changes (night mode and satellite view)
   useEffect(() => {
     if (!mapRef.current || !mapLoaded) return;
 
     const map = mapRef.current;
     
-    // Get the osm source and update its tiles
-    const osmSource = map.getSource('osm') as maplibregl.RasterTileSource;
-    if (osmSource) {
-      // We need to update the style - simplest way is to set new tiles
-      const newTiles = isNightMode 
-        ? [
-            'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-            'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-            'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
-          ]
-        : [
-            'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
-          ];
-      
-      // MapLibre doesn't support changing tiles directly, so we update via setStyle
-      // but preserve zoom/center/pitch/bearing
-      const center = map.getCenter();
-      const zoom = map.getZoom();
-      const pitch = map.getPitch();
-      const bearing = map.getBearing();
-      
-      map.setStyle({
-        version: 8,
-        sources: {
-          'osm': {
-            type: 'raster',
-            tiles: newTiles,
-            tileSize: 256,
-            attribution: isNightMode ? '© CartoDB © OpenStreetMap' : '© OpenStreetMap contributors'
-          }
-        },
-        layers: [
-          {
-            id: 'osm-layer',
-            type: 'raster',
-            source: 'osm',
-            minzoom: 0,
-            maxzoom: 19
-          }
-        ]
-      });
-      
-      // Restore view after style change
-      map.setCenter(center);
-      map.setZoom(zoom);
-      map.setPitch(pitch);
-      map.setBearing(bearing);
-      
-      // Re-add sources after style change
-      map.once('style.load', () => {
-        if (!map.getSource('bus-shapes')) {
-          map.addSource('bus-shapes', {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: [] }
-          });
-        }
-        
-        if (!map.getSource('route-line')) {
-          map.addSource('route-line', {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: [] }
-          });
-          
-          map.addLayer({
-            id: 'route-line-layer',
-            type: 'line',
-            source: 'route-line',
-            layout: { 'line-join': 'round', 'line-cap': 'round' },
-            paint: { 'line-color': ['get', 'color'], 'line-width': 5, 'line-opacity': 0.8 }
-          });
-        }
-        
-        if (!map.getSource('route-points')) {
-          map.addSource('route-points', {
-            type: 'geojson',
-            data: { type: 'FeatureCollection', features: [] }
-          });
-        }
-        
-        shapesSourceRef.current = true;
-      });
+    // Determine which tiles to use based on satellite and night mode
+    let newTiles: string[];
+    let attribution: string;
+    
+    if (isSatelliteView) {
+      // ESRI World Imagery (satellite)
+      newTiles = [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      ];
+      attribution = 'Tiles © Esri';
+    } else if (isNightMode) {
+      // CARTO Dark
+      newTiles = [
+        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
+      ];
+      attribution = '© CartoDB © OpenStreetMap';
+    } else {
+      // OpenStreetMap
+      newTiles = [
+        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      ];
+      attribution = '© OpenStreetMap contributors';
     }
-  }, [isNightMode, mapLoaded]);
+    
+    // Preserve current view
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    const pitch = map.getPitch();
+    const bearing = map.getBearing();
+    
+    map.setStyle({
+      version: 8,
+      sources: {
+        'osm': {
+          type: 'raster',
+          tiles: newTiles,
+          tileSize: 256,
+          attribution: attribution
+        }
+      },
+      layers: [
+        {
+          id: 'osm-layer',
+          type: 'raster',
+          source: 'osm',
+          minzoom: 0,
+          maxzoom: 19
+        }
+      ]
+    });
+    
+    // Restore view after style change
+    map.setCenter(center);
+    map.setZoom(zoom);
+    map.setPitch(pitch);
+    map.setBearing(bearing);
+    
+    // Re-add sources after style change
+    map.once('style.load', () => {
+      if (!map.getSource('bus-shapes')) {
+        map.addSource('bus-shapes', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+      
+      if (!map.getSource('route-line')) {
+        map.addSource('route-line', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        
+        map.addLayer({
+          id: 'route-line-layer',
+          type: 'line',
+          source: 'route-line',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': ['get', 'color'], 'line-width': 5, 'line-opacity': 0.8 }
+        });
+      }
+      
+      if (!map.getSource('route-points')) {
+        map.addSource('route-points', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+      }
+      
+      shapesSourceRef.current = true;
+    });
+  }, [isNightMode, isSatelliteView, mapLoaded]);
   useEffect(() => {
     if (!mapRef.current || !containerRef.current || !isActive) return;
     const map = mapRef.current;
@@ -1403,6 +1414,21 @@ export function VehicleMap({
             <Volume2 className="h-4 w-4 text-blue-500" />
           ) : (
             <VolumeX className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
+
+        {/* Satellite/Street toggle */}
+        <Button
+          variant="secondary"
+          size="icon"
+          className={`absolute top-[14.5rem] right-4 z-[1000] glass-card h-9 w-9 pointer-events-auto ${isSatelliteView ? 'ring-2 ring-emerald-500/50' : ''}`}
+          onClick={() => setIsSatelliteView(!isSatelliteView)}
+          title={isSatelliteView ? 'Προβολή χάρτη' : 'Δορυφορική προβολή'}
+        >
+          {isSatelliteView ? (
+            <MapIcon className="h-4 w-4 text-emerald-500" />
+          ) : (
+            <Satellite className="h-4 w-4 text-muted-foreground" />
           )}
         </Button>
 
