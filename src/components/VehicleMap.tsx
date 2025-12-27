@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.markercluster";
-import { X, Navigation, MapPin, Clock, LocateFixed, Search, Loader2 } from "lucide-react";
+import { X, Navigation, MapPin, Clock, LocateFixed, Search, Loader2, Settings, Layers, Volume2, Bell, Home, ZoomIn, ZoomOut, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -677,55 +677,69 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, se
         </div>
       )}
       
-      {/* Following indicator */}
+      {/* Vehicle tracking panel - bottom right */}
       {followedVehicle && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 glass-card rounded-lg px-4 py-2 z-[1000] min-w-[280px] max-w-[95%]">
-          <div className="flex items-center gap-3">
+        <div className="absolute bottom-20 right-4 glass-card rounded-lg z-[1000] w-[320px] max-w-[calc(100vw-2rem)]">
+          {/* Header */}
+          <div className="flex items-center gap-2 p-2 border-b border-border">
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
             <Navigation 
-              className="h-4 w-4 animate-pulse flex-shrink-0" 
+              className="h-4 w-4 animate-pulse" 
               style={{ color: followedRouteInfo?.route_color ? `#${followedRouteInfo.route_color}` : 'hsl(var(--primary))' }}
             />
-            <div className="text-sm flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-muted-foreground">Όχημα:</span>
-                <span className="font-semibold">{followedVehicle.label || followedVehicle.vehicleId || followedVehicle.id}</span>
-                {followedVehicle.speed !== undefined && (
-                  <span className="text-primary font-medium">{formatSpeed(followedVehicle.speed)}</span>
-                )}
-              </div>
-              {followedRouteInfo && (
-                <div 
-                  className="font-medium mt-0.5"
-                  style={{ color: followedRouteInfo.route_color ? `#${followedRouteInfo.route_color}` : 'inherit' }}
-                >
-                  {followedRouteInfo.route_short_name} - {followedRouteInfo.route_long_name}
-                </div>
-              )}
-            </div>
+            <span className="text-sm font-medium flex-1">Παρακολούθηση</span>
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 flex-shrink-0"
+              className="h-6 w-6"
               onClick={() => setFollowedVehicleId(null)}
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          {followedNextStop && (
-            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border text-sm flex-wrap">
-              <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-              <span className="text-muted-foreground">Επόμενη στάση:</span>
-              <span className="font-medium">{followedNextStop.stopName}</span>
-              {followedNextStop.arrivalTime && (
-                <span className="font-mono text-primary">{formatETA(followedNextStop.arrivalTime)}</span>
-              )}
-              {followedNextStop.arrivalDelay !== undefined && followedNextStop.arrivalDelay !== 0 && (
-                <span className={followedNextStop.arrivalDelay > 0 ? 'text-destructive' : 'text-green-500'}>
-                  {formatDelay(followedNextStop.arrivalDelay)}
-                </span>
+          
+          {/* Content */}
+          <div className="p-3 space-y-2">
+            {/* Vehicle info */}
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Όχημα:</span>
+              <span className="font-bold">{followedVehicle.label || followedVehicle.vehicleId || followedVehicle.id}</span>
+              {followedVehicle.speed !== undefined && (
+                <span className="text-primary font-medium">{formatSpeed(followedVehicle.speed)}</span>
               )}
             </div>
-          )}
+            
+            {/* Route info */}
+            {followedRouteInfo && (
+              <div 
+                className="text-sm font-medium"
+                style={{ color: followedRouteInfo.route_color ? `#${followedRouteInfo.route_color}` : 'inherit' }}
+              >
+                {followedRouteInfo.route_short_name} - {followedRouteInfo.route_long_name}
+              </div>
+            )}
+            
+            {/* Next stop */}
+            {followedNextStop && (
+              <div className="flex items-center gap-2 pt-2 border-t border-border text-sm">
+                <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                <span className="text-muted-foreground">Επόμενη:</span>
+                <span className="font-medium">{followedNextStop.stopName}</span>
+                {followedNextStop.arrivalTime && (
+                  <span className="font-mono text-primary">{formatETA(followedNextStop.arrivalTime)}</span>
+                )}
+                {followedNextStop.arrivalDelay !== undefined && (
+                  <span className={`text-xs ${
+                    followedNextStop.arrivalDelay > 0 ? 'text-destructive' : 
+                    followedNextStop.arrivalDelay < 0 ? 'text-green-500' : 
+                    'text-muted-foreground'
+                  }`}>
+                    {followedNextStop.arrivalDelay === 0 ? '(στην ώρα)' : formatDelay(followedNextStop.arrivalDelay)}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -785,30 +799,107 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, se
         </div>
       </div>
 
-      {/* Map controls */}
-      <div className="absolute top-4 right-4 glass-card rounded-lg px-3 py-2 flex items-center gap-2 z-[1000]">
-        <Switch
-          id="show-stops"
-          checked={showStops}
-          onCheckedChange={setShowStops}
-        />
-        <Label htmlFor="show-stops" className="text-xs cursor-pointer flex items-center gap-1">
-          <MapPin className="h-3 w-3 text-orange-500" />
-          Στάσεις ({stops.length})
-        </Label>
-      </div>
+      {/* Right side controls toolbar */}
+      <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+        {/* Stops toggle */}
+        <div className="glass-card rounded-lg px-3 py-2 flex items-center gap-2">
+          <Switch
+            id="show-stops"
+            checked={showStops}
+            onCheckedChange={setShowStops}
+          />
+          <Label htmlFor="show-stops" className="text-xs cursor-pointer flex items-center gap-1">
+            <MapPin className="h-3 w-3 text-orange-500" />
+            Στάσεις ({stops.length})
+          </Label>
+        </div>
 
-      {/* Location button */}
-      <Button
-        variant="secondary"
-        size="icon"
-        className="absolute top-16 right-4 z-[1000] glass-card h-9 w-9"
-        onClick={locateUser}
-        disabled={isLocating}
-        title="Εντοπισμός τοποθεσίας"
-      >
-        <LocateFixed className={`h-4 w-4 ${isLocating ? 'animate-pulse' : ''} ${userLocation ? 'text-blue-500' : ''}`} />
-      </Button>
+        {/* Control buttons */}
+        <div className="glass-card rounded-lg p-1 flex flex-col gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            title="Ρυθμίσεις"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            onClick={locateUser}
+            disabled={isLocating}
+            title="Εντοπισμός τοποθεσίας"
+          >
+            <LocateFixed className={`h-4 w-4 ${isLocating ? 'animate-pulse' : ''} ${userLocation ? 'text-blue-500' : ''}`} />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            title="Ειδοποιήσεις"
+          >
+            <Bell className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            title="Ήχος"
+          >
+            <Volume2 className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            title="Επίπεδα χάρτη"
+          >
+            <Layers className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            title="Αρχική θέση"
+            onClick={() => {
+              if (mapRef.current) {
+                mapRef.current.setView([35.0, 33.0], 9, { animate: true });
+              }
+            }}
+          >
+            <Home className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Zoom controls */}
+        <div className="glass-card rounded-lg p-1 flex flex-col gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            title="Μεγέθυνση"
+            onClick={() => mapRef.current?.zoomIn()}
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            title="Σμίκρυνση"
+            onClick={() => mapRef.current?.zoomOut()}
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
       {/* Nearest stop info */}
       {nearestStop && userLocation && (

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronUp, ChevronDown, X, Clock, Bus, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronUp, ChevronDown, X, Clock, Bus, ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -133,6 +133,9 @@ export function RouteStopsPanel({
         className="flex items-center gap-2 p-3 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors"
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
+        {/* Drag handle */}
+        <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
+        
         <div 
           className="flex items-center justify-center w-10 h-10 rounded-lg text-white font-bold text-lg"
           style={{ backgroundColor: routeColor }}
