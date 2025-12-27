@@ -182,10 +182,7 @@
   background: hsl(var(--background));
 }
 
-/* Invert OSM tiles for dark mode */
-.dark .leaflet-tile {
-  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
-}
+/* No filter for satellite tiles - keep natural colors */
 
 .leaflet-popup-content-wrapper {
   background: hsl(var(--card));
