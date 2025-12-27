@@ -3,7 +3,7 @@ import cors from "cors";
 
 const app = express();
 const PORT = process.env.PORT || 5174;
-const GTFS_RT_URL = process.env.FEED_URL || "http://20.19.98.194:8328/Api/api/gtfs-realtime";
+const GTFS_RT_URL = "http://20.19.98.194:8328/Api/api/gtfs-realtime";
 
 app.use(cors());
 
