@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import "leaflet.markercluster";
-import { X, Navigation, MapPin, Clock, LocateFixed } from "lucide-react";
+import { X, Navigation, MapPin, Clock, LocateFixed, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import type { Vehicle, StaticStop, Trip, RouteInfo } from "@/types/gtfs";
 
 interface VehicleMapProps {
@@ -112,6 +113,77 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const searchMarkerRef = useRef<L.Marker | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ display_name: string; lat: string; lon: string }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // Geocoding search function
+  const searchAddress = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=cy&limit=5`,
+        {
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
+      );
+      const data = await response.json();
+      setSearchResults(data);
+      setShowSearchResults(true);
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Handle search result selection
+  const selectSearchResult = useCallback((result: { display_name: string; lat: string; lon: string }) => {
+    const lat = parseFloat(result.lat);
+    const lon = parseFloat(result.lon);
+
+    if (mapRef.current) {
+      // Remove existing search marker
+      if (searchMarkerRef.current) {
+        mapRef.current.removeLayer(searchMarkerRef.current);
+      }
+
+      // Create search result marker
+      const searchIcon = L.divIcon({
+        className: 'search-marker',
+        html: `
+          <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+      });
+
+      searchMarkerRef.current = L.marker([lat, lon], { icon: searchIcon })
+        .addTo(mapRef.current)
+        .bindPopup(`<div class="p-2 text-sm font-medium">${result.display_name}</div>`)
+        .openPopup();
+
+      mapRef.current.setView([lat, lon], 16, { animate: true });
+    }
+
+    setShowSearchResults(false);
+    setSearchQuery(result.display_name.split(',')[0]);
+  }, []);
 
   // Create a map of tripId -> Trip for quick lookup
   const tripMap = useMemo(() => {
@@ -618,6 +690,62 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
           )}
         </div>
       )}
+
+      {/* Search box */}
+      <div className="absolute top-4 left-4 z-[1000] w-72">
+        <div className="glass-card rounded-lg">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Αναζήτηση διεύθυνσης..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  searchAddress(searchQuery);
+                }
+              }}
+              onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
+              className="pl-9 pr-10 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            {isSearching ? (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            ) : searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchResults([]);
+                  setShowSearchResults(false);
+                  if (searchMarkerRef.current && mapRef.current) {
+                    mapRef.current.removeLayer(searchMarkerRef.current);
+                    searchMarkerRef.current = null;
+                  }
+                }}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          {showSearchResults && searchResults.length > 0 && (
+            <div className="border-t border-border max-h-48 overflow-y-auto">
+              {searchResults.map((result, idx) => (
+                <button
+                  key={idx}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors flex items-start gap-2"
+                  onClick={() => selectSearchResult(result)}
+                >
+                  <MapPin className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+                  <span className="line-clamp-2">{result.display_name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Map controls */}
       <div className="absolute top-4 right-4 glass-card rounded-lg px-3 py-2 flex items-center gap-2 z-[1000]">
