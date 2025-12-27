@@ -5,7 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GTFS_RT_BASE_URL = "http://20.19.98.194:8328/Api/api/gtfs-realtime";
+const GTFS_RT_BASE_URL =
+  Deno.env.get("GTFS_RT_BASE_URL") ||
+  "https://www.motionbuscard.org.cy/opendata/gtfs-realtime";
 
 // GTFS-Realtime Protocol Buffer Parser
 // Based on the GTFS-RT specification: https://gtfs.org/realtime/reference/
