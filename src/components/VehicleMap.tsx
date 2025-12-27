@@ -111,59 +111,7 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
   const userLocationMarkerRef = useRef<L.Marker | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [mapboxError, setMapboxError] = useState<string | null>(null);
-  const [runtimeMapboxToken, setRuntimeMapboxToken] = useState<string | null>(null);
-  const [runtimeTokenSource, setRuntimeTokenSource] = useState<string | null>(null);
-  const mapboxLayerRef = useRef<L.TileLayer | null>(null);
-  const fallbackLayerRef = useRef<L.TileLayer | null>(null);
-  const envMapboxToken = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined)?.trim();
-  const mapboxToken = runtimeMapboxToken || envMapboxToken;
-  const mapboxTokenSource = runtimeMapboxToken
-    ? runtimeTokenSource
-    : envMapboxToken
-      ? 'env'
-      : null;
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get('mapbox_token')?.trim();
-
-    if (urlToken) {
-      window.localStorage.setItem('mapboxToken', urlToken);
-      setRuntimeMapboxToken(urlToken);
-      setRuntimeTokenSource('url');
-      return;
-    }
-
-    const storedToken = window.localStorage.getItem('mapboxToken')?.trim();
-    if (storedToken) {
-      setRuntimeMapboxToken(storedToken);
-      setRuntimeTokenSource('localStorage');
-    }
-  }, []);
-
-  const ensureFallbackLayer = () => {
-    if (!mapRef.current) return;
-    if (!fallbackLayerRef.current) {
-      fallbackLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      });
-    }
-
-    if (!mapRef.current.hasLayer(fallbackLayerRef.current)) {
-      fallbackLayerRef.current.addTo(mapRef.current);
-    }
-  };
-
-  const removeFallbackLayer = () => {
-    if (!mapRef.current || !fallbackLayerRef.current) return;
-    if (mapRef.current.hasLayer(fallbackLayerRef.current)) {
-      mapRef.current.removeLayer(fallbackLayerRef.current);
-    }
-  };
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
 
   // Create a map of tripId -> Trip for quick lookup
   const tripMap = useMemo(() => {
@@ -264,11 +212,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       zoomControl: true,
     });
 
-    mapRef.current.on('layeradd', (event) => {
-      if (!(event.layer instanceof L.TileLayer)) return;
-      if (event.layer === mapboxLayerRef.current || event.layer === fallbackLayerRef.current) return;
-      mapRef.current?.removeLayer(event.layer);
-    });
 
     vehicleMarkersRef.current = L.markerClusterGroup({
       chunkedLoading: true,
@@ -310,72 +253,25 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     };
   }, []);
 
+  // Add Esri satellite layer
   useEffect(() => {
     if (!mapRef.current) return;
 
-    if (mapboxLayerRef.current) {
-      mapboxLayerRef.current.off();
-      mapRef.current.removeLayer(mapboxLayerRef.current);
-      mapboxLayerRef.current = null;
-    }
-
-    mapRef.current.eachLayer((layer) => {
-      if (layer instanceof L.TileLayer && layer !== fallbackLayerRef.current) {
-        mapRef.current?.removeLayer(layer);
-      }
-    });
-
-    if (!mapboxToken) {
-      const message = 'Λείπει το Mapbox token. Βάλε VITE_MAPBOX_TOKEN στο .env ή πέρασε ?mapbox_token=pk... στο URL και κάνε refresh.';
-      console.warn(message);
-      setMapboxError(message);
-      ensureFallbackLayer();
-      return;
-    }
-
-    if (!mapboxToken.startsWith('pk.')) {
-      const message = 'Το Mapbox token πρέπει να είναι public (να ξεκινά με "pk.").';
-      console.warn(message);
-      setMapboxError(message);
-      ensureFallbackLayer();
-      return;
-    }
-
-    setMapboxError(null);
-    removeFallbackLayer();
-
-    const mapboxLayer = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${mapboxToken}`, {
-      attribution:
-        '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      tileSize: 512,
-      zoomOffset: -1,
+    // Use Esri World Imagery (free, no API key required)
+    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Map data © <a href="https://www.esri.com/">Esri</a> | MapLibre',
       maxZoom: 19,
     });
 
-    mapboxLayer.on('tileerror', (event) => {
-      const sourceLabel = mapboxTokenSource ? ` (πηγή: ${mapboxTokenSource})` : '';
-      const message = `Mapbox tiles δεν φορτώνουν${sourceLabel}. Έλεγξε token/δικαιώματα (π.χ. allowed URLs) ή δίκτυο.`;
-      console.error(message, event);
-      setMapboxError(message);
-      ensureFallbackLayer();
-    });
-
-    mapboxLayer.on('load', () => {
-      removeFallbackLayer();
-      setMapboxError(null);
-    });
-
-    mapboxLayerRef.current = mapboxLayer;
-    mapboxLayer.addTo(mapRef.current);
+    tileLayerRef.current = esriSatellite;
+    esriSatellite.addTo(mapRef.current);
 
     return () => {
-      mapboxLayer.off();
-      mapRef.current?.removeLayer(mapboxLayer);
-      if (mapboxLayerRef.current === mapboxLayer) {
-        mapboxLayerRef.current = null;
+      if (mapRef.current && esriSatellite) {
+        mapRef.current.removeLayer(esriSatellite);
       }
     };
-  }, [mapboxToken, mapboxTokenSource]);
+  }, []);
 
   // Update vehicle markers when vehicles change
   useEffect(() => {
@@ -667,13 +563,6 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
           <div className="flex items-center gap-2 text-muted-foreground">
             <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             <span>Φόρτωση...</span>
-          </div>
-        </div>
-      )}
-      {mapboxError && (
-        <div className="absolute top-4 left-4 right-4 z-[1000]">
-          <div className="glass-card rounded-lg px-4 py-2 text-xs text-destructive border border-destructive/30">
-            {mapboxError}
           </div>
         </div>
       )}
