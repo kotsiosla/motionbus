@@ -342,13 +342,11 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
     setMapboxError(null);
     removeFallbackLayer();
 
-    const mapboxLayer = L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+    const mapboxLayer = L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`, {
       attribution:
         '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      id: 'mapbox/satellite-streets-v12',
       tileSize: 512,
       zoomOffset: -1,
-      accessToken: mapboxToken,
     });
 
     mapboxLayer.on('tileerror', (event) => {
