@@ -582,7 +582,7 @@ interface EntitySelector {
 
 async function fetchGtfsData(operatorId?: string): Promise<GtfsRealtimeFeed> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
   // Build URL with optional operator filter
   const url = operatorId && operatorId !== 'all' 
