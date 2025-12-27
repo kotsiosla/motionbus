@@ -311,6 +311,12 @@ export function VehicleMap({ vehicles, trips = [], stops = [], routeNamesMap, is
       mapboxLayerRef.current = null;
     }
 
+    mapRef.current.eachLayer((layer) => {
+      if (layer instanceof L.TileLayer && layer !== fallbackLayerRef.current) {
+        mapRef.current?.removeLayer(layer);
+      }
+    });
+
     if (!mapboxToken) {
       const message = 'Λείπει το Mapbox token. Βάλε VITE_MAPBOX_TOKEN στο .env ή πέρασε ?mapbox_token=pk... στο URL και κάνε refresh.';
       console.warn(message);
