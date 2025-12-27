@@ -11,7 +11,9 @@ type VehiclePosition = {
   bearing?: number | null;
 };
 
-const GTFS_RT_PROXY_URL = "http://localhost:5174/gtfsrt/vehicle-positions";
+const GTFS_RT_PROXY_URL =
+  import.meta.env.VITE_GTFS_RT_PROXY_URL ||
+  "http://localhost:5174/gtfsrt/vehicle-positions";
 
 const createMarkerElement = (label?: string) => {
   const el = document.createElement("div");
