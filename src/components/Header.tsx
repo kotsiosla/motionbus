@@ -68,8 +68,8 @@ export function Header({
           <div className="flex items-center gap-3">
             <img src={motionLogo} alt="Motion Logo" className="h-8" />
             <div>
-              <h1 className="text-lg font-bold tracking-tight">Cyprus Bus</h1>
-              <p className="text-xs text-muted-foreground">GTFS Realtime · Live Tracking</p>
+              <h1 className="text-lg font-bold tracking-tight">GTFS Realtime</h1>
+              <p className="text-xs text-muted-foreground">Live Tracking</p>
             </div>
           </div>
 
