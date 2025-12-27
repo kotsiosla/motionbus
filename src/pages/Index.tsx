@@ -61,9 +61,10 @@ const Index = () => {
     return Array.from(liveRoutes);
   }, [staticRoutesQuery.data, liveRoutes, showLiveOnly]);
 
-  // Reset route when operator changes
+  // Reset route and refetch stops when operator changes
   useEffect(() => {
     setSelectedRoute("all");
+    staticStopsQuery.refetch();
   }, [selectedOperator]);
 
   // Filter data by selected route
